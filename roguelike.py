@@ -4,9 +4,10 @@ pygame.init()
 width, height = 800, 600
 screen = pygame.display.set_mode((width, height))
 clock = pygame.time.Clock()
-running = True
+in_menu = True
 fps = 60
 clock = pygame.time.Clock()
+
 
 
 def draw_menu():
@@ -32,18 +33,22 @@ def draw_menu():
     screen.blit(font.render("Достижения", 1, pygame.Color('red')),
                 (width // 3 + 20, height // 12 * 7 + 5))
     screen.blit(font.render("Выход", 1, pygame.Color('red')),
-                (width // 3 + 75, height // 24 * 17 + 5))
+                (width // 3 + 70, height // 24 * 17 + 5))
 
 
 screen.fill(pygame.Color('black'))
 draw_menu()
 
 
-while running:
+while in_menu:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            running = False
+            in_menu = False
         if event.type == pygame.MOUSEBUTTONDOWN:
-            pass
+            if event.pos[0] in range(width // 4, width // 4 * 3):
+                if event.pos[1] in range(height // 24 * 17, height // 24 * 19):
+                    in_menu = False
+                elif event.pos[1] in range(height // 3, height // 2):
+                    pass
     clock.tick(fps)
     pygame.display.flip()
