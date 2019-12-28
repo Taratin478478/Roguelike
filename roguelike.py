@@ -40,7 +40,7 @@ class Game:
         self.tile_height = 16
 
     def load_level(self):
-        with open('data/level', 'r') as mapFile:
+        with open('data/levels/basic.txt', 'r') as mapFile:
             level_map = [line.strip() for line in mapFile]
         max_width = max(map(len, level_map))
         return list(map(lambda x: x.ljust(max_width, '.'), level_map))
@@ -57,15 +57,20 @@ class Game:
                     Tile('empty', x, y, self)
 
     def run_game(self):
-        while self.in_menu:
+        global screen
+        screen = pygame.display.set_mode((1920, 1080), pygame.FULLSCREEN)
+        self.load_level()
+        self.draw_level()
+        while self.in_game:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.in_game = False
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     pass
             clock.tick(fps)
+            screen.fill(pygame.Color('black'))
+            self.all_sprites.draw(screen)
             pygame.display.flip()
-
 
 
 class Menu:
@@ -123,8 +128,8 @@ class Menu:
 
 game = Game()
 menu = Menu()
-curr_in_game = False
-curr_in_menu = True
 while game.in_game or menu.in_menu:
-    pass
-
+    if game.in_game:
+        game.run_game()
+    if menu.in_menu:
+        menu.run_menu()
