@@ -1,5 +1,4 @@
 import os
-
 import pygame
 
 pygame.init()
@@ -36,8 +35,8 @@ class Game:
         self.all_sprites = pygame.sprite.Group()
         self.tile_images = {'wall': load_image('images\\wall.png'),
                             'empty': load_image('images\\floor.png')}
-        self.tile_width = 16
-        self.tile_height = 16
+        self.tile_width = 64
+        self.tile_height = 64
 
     def load_level(self):
         with open('data/levels/basic.txt', 'r') as mapFile:
