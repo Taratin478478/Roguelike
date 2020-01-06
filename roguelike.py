@@ -21,55 +21,119 @@ def load_image(name, colorkey=None):
 
 
 class Tile(pygame.sprite.Sprite):
-    def __init__(self, tile_type, pos_x, pos_y, game):
-        super().__init__(game.tiles_group, game.all_sprites)
-        self.image = game.tile_images[tile_type]
-        self.rect = self.image.get_rect().move(game.tile_width * pos_x,
-                                               game.tile_height * pos_y)
+    def __init__(self, tile_type, pos_x, pos_y):
+        super().__init__(tiles_group, all_sprites)
+        self.image = tile_images[tile_type]
+        self.rect = self.image.get_rect().move(tile_width * pos_x,
+                                               tile_height * pos_y)
 
 
-class Game:
+class Wall(pygame.sprite.Sprite):
+    def __init__(self, tile_type, pos_x, pos_y):
+        super().__init__(tiles_group, all_sprites, walls_group)
+        self.image = tile_images[tile_type]
+        self.rect = self.image.get_rect().move(tile_width * pos_x,
+                                               tile_height * pos_y)
+
+
+class Camera:
+    # зададим начальный сдвиг камеры
     def __init__(self):
-        self.in_game = False
-        self.tiles_group = pygame.sprite.Group()
-        self.all_sprites = pygame.sprite.Group()
-        self.tile_images = {'wall': load_image('images\\wall.png'),
-                            'empty': load_image('images\\floor.png')}
-        self.tile_width = 64
-        self.tile_height = 64
+        self.dx = 0
+        self.dy = 0
 
-    def load_level(self):
-        with open('data/levels/basic.txt', 'r') as mapFile:
-            level_map = [line.strip() for line in mapFile]
-        max_width = max(map(len, level_map))
-        return list(map(lambda x: x.ljust(max_width, '.'), level_map))
+    # сдвинуть объект obj на смещение камеры
+    def apply(self, obj):
+        obj.rect.x = obj.rect.x + self.dx
+        obj.rect.y = obj.rect.y + self.dy
 
-    def draw_level(self):
-        level = self.load_level()
-        for y in range(len(level)):
-            for x in range(len(level[y])):
-                if level[y][x] == '.':
-                    Tile('empty', x, y, self)
-                elif level[y][x] == '#':
-                    Tile('wall', x, y, self)
-                elif level[y][x] == '@':
-                    Tile('empty', x, y, self)
+    # позиционировать камеру на объекте target
+    def update(self, target):
+        self.dx = -(target.rect.x + target.rect.w // 2 - 1920 // 2)
+        self.dy = -(target.rect.y + target.rect.h // 2 - 1080 // 2)
 
-    def run_game(self):
-        global screen
-        screen = pygame.display.set_mode((1920, 1080), pygame.FULLSCREEN)
-        self.load_level()
-        self.draw_level()
-        while self.in_game:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    self.in_game = False
-                if event.type == pygame.MOUSEBUTTONDOWN:
-                    pass
-            clock.tick(fps)
-            screen.fill(pygame.Color('black'))
-            self.all_sprites.draw(screen)
-            pygame.display.flip()
+
+in_game = False
+tiles_group = pygame.sprite.Group()
+player_group = pygame.sprite.Group()
+walls_group = pygame.sprite.Group()
+all_sprites = pygame.sprite.Group()
+tile_images = {'wall': load_image('images\\wall.png'),
+                    'empty': load_image('images\\floor.png')}
+tile_width = 64
+tile_height = 64
+
+
+def load_level():
+    global mw, mh
+    with open('data/levels/basic.txt', 'r') as mapFile:
+        level_map = [line.strip() for line in mapFile]
+    mw = len(level_map[0])
+    mh = len(level_map)
+    max_width = max(map(len, level_map))
+    return list(map(lambda x: x.ljust(max_width, '.'), level_map))
+
+def draw_level():
+    global player
+    level = load_level()
+    for y in range(len(level)):
+        for x in range(len(level[y])):
+            if level[y][x] == '.':
+                Tile('empty', x, y)
+            elif level[y][x] == '#':
+                Wall('wall', x, y)
+            elif level[y][x] == '@':
+                Tile('empty', x, y,)
+                player = Player(x, y)
+
+def run_game():
+    global screen, in_game
+    camera = Camera()
+    screen = pygame.display.set_mode((1920, 1080), pygame.FULLSCREEN)
+    load_level()
+    draw_level()
+    while in_game:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                in_game = False
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                pass
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RIGHT or event.key == pygame.K_d:
+                    player.move(0, 1)
+                    if pygame.sprite.spritecollideany(player, walls_group):
+                        player.move(0, -1)
+                if event.key == pygame.K_LEFT or event.key == pygame.K_a:
+                    player.move(0, -1)
+                    if pygame.sprite.spritecollideany(player, walls_group):
+                        player.move(0, 1)
+                if event.key == pygame.K_UP or event.key == pygame.K_w:
+                    player.move(1, -1)
+                    if pygame.sprite.spritecollideany(player, walls_group):
+                        player.move(1, 1)
+                if event.key == pygame.K_DOWN or event.key == pygame.K_s:
+                    player.move(1, 1)
+                    if pygame.sprite.spritecollideany(player, walls_group):
+                        player.move(1, -1)
+        camera.update(player)
+        for sprite in all_sprites:
+            camera.apply(sprite)
+        clock.tick(fps)
+        screen.fill(pygame.Color('black'))
+        tiles_group.draw(screen)
+        player_group.draw(screen)
+        pygame.display.flip()
+
+
+class Player(pygame.sprite.Sprite):
+    def __init__(self, pos_x, pos_y):
+        super().__init__(player_group, all_sprites)
+        pygame.key.set_repeat(10, 1)
+        self.image = load_image('images\\player.png', -1)
+        self.rect = self.image.get_rect().move(tile_width * pos_x + 15, tile_height * pos_y + 5)
+
+    def move(self, dir, n):
+        self.rect[dir] += 5 * n
 
 
 class Menu:
@@ -108,6 +172,7 @@ class Menu:
                     (width // 3 + 70, height // 24 * 17 + 5))
 
     def run_menu(self):
+        global in_game
         while self.in_menu:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -120,15 +185,14 @@ class Menu:
                         elif event.pos[1] in range(height // 3,
                                                    height // 12 * 5):
                             self.in_menu = False
-                            game.in_game = True
+                            in_game = True
             clock.tick(fps)
             pygame.display.flip()
 
 
-game = Game()
 menu = Menu()
-while game.in_game or menu.in_menu:
-    if game.in_game:
-        game.run_game()
+while in_game or menu.in_menu:
+    if in_game:
+        run_game()
     if menu.in_menu:
         menu.run_menu()
