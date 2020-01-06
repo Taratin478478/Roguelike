@@ -1,11 +1,17 @@
 import os
 import pygame
+from PIL import Image
 
 pygame.init()
 width, height = 800, 600
 screen = pygame.display.set_mode((width, height))
 clock = pygame.time.Clock()
 fps = 60
+
+
+def mirror():
+    i = Image.open('data\\images\\player.png')
+    i.transpose(Image.FLIP_LEFT_RIGHT).save('data\\images\\player.png')
 
 
 def load_image(name, colorkey=None):
@@ -59,19 +65,19 @@ player_group = pygame.sprite.Group()
 walls_group = pygame.sprite.Group()
 all_sprites = pygame.sprite.Group()
 tile_images = {'wall': load_image('images\\wall.png'),
-                    'empty': load_image('images\\floor.png')}
+               'empty': load_image('images\\floor.png')}
 tile_width = 64
 tile_height = 64
+mw = 15
+mh = 15
 
 
 def load_level():
-    global mw, mh
     with open('data/levels/basic.txt', 'r') as mapFile:
         level_map = [line.strip() for line in mapFile]
-    mw = len(level_map[0])
-    mh = len(level_map)
     max_width = max(map(len, level_map))
     return list(map(lambda x: x.ljust(max_width, '.'), level_map))
+
 
 def draw_level():
     global player
@@ -83,46 +89,8 @@ def draw_level():
             elif level[y][x] == '#':
                 Wall('wall', x, y)
             elif level[y][x] == '@':
-                Tile('empty', x, y,)
+                Tile('empty', x, y, )
                 player = Player(x, y)
-
-def run_game():
-    global screen, in_game
-    camera = Camera()
-    screen = pygame.display.set_mode((1920, 1080), pygame.FULLSCREEN)
-    load_level()
-    draw_level()
-    while in_game:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                in_game = False
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                pass
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_RIGHT or event.key == pygame.K_d:
-                    player.move(0, 1)
-                    if pygame.sprite.spritecollideany(player, walls_group):
-                        player.move(0, -1)
-                if event.key == pygame.K_LEFT or event.key == pygame.K_a:
-                    player.move(0, -1)
-                    if pygame.sprite.spritecollideany(player, walls_group):
-                        player.move(0, 1)
-                if event.key == pygame.K_UP or event.key == pygame.K_w:
-                    player.move(1, -1)
-                    if pygame.sprite.spritecollideany(player, walls_group):
-                        player.move(1, 1)
-                if event.key == pygame.K_DOWN or event.key == pygame.K_s:
-                    player.move(1, 1)
-                    if pygame.sprite.spritecollideany(player, walls_group):
-                        player.move(1, -1)
-        camera.update(player)
-        for sprite in all_sprites:
-            camera.apply(sprite)
-        clock.tick(fps)
-        screen.fill(pygame.Color('black'))
-        tiles_group.draw(screen)
-        player_group.draw(screen)
-        pygame.display.flip()
 
 
 class Player(pygame.sprite.Sprite):
@@ -131,6 +99,9 @@ class Player(pygame.sprite.Sprite):
         pygame.key.set_repeat(10, 1)
         self.image = load_image('images\\player.png', -1)
         self.rect = self.image.get_rect().move(tile_width * pos_x + 15, tile_height * pos_y + 5)
+        self.hor_direction = 'right'
+        self.vert_direction = 'down'
+        self.walk_cycle = 0
 
     def move(self, dir, n):
         self.rect[dir] += 5 * n
@@ -188,6 +159,69 @@ class Menu:
                             in_game = True
             clock.tick(fps)
             pygame.display.flip()
+
+
+def run_game():
+    global screen, in_game
+    camera = Camera()
+    screen = pygame.display.set_mode((1920, 1080), pygame.FULLSCREEN)
+    load_level()
+    draw_level()
+    while in_game:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                in_game = False
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                pass
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RIGHT or event.key == pygame.K_d:
+                    player.move(0, 1)
+                    if pygame.sprite.spritecollideany(player, walls_group):
+                        player.move(0, -1)
+                    if player.walk_cycle < 10:
+                        player.image = load_image('images\\player.png', -1)
+                    else:
+                        player.image = load_image('images\\player_2.png', -1)
+                    player.walk_cycle = (player.walk_cycle + 1) % 20
+                    player.hor_direction = 'right'
+                if event.key == pygame.K_LEFT or event.key == pygame.K_a:
+                    player.move(0, -1)
+                    if pygame.sprite.spritecollideany(player, walls_group):
+                        player.move(0, 1)
+                    if player.walk_cycle < 10:
+                        player.image = load_image('images\\player_left.png', -1)
+                    else:
+                        player.image = load_image('images\\player_left_2.png', -1)
+                    player.walk_cycle = (player.walk_cycle + 1) % 20
+                    player.hor_direction = 'left'
+                if event.key == pygame.K_UP or event.key == pygame.K_w:
+                    player.move(1, -1)
+                    if pygame.sprite.spritecollideany(player, walls_group):
+                        player.move(1, 1)
+                    if player.walk_cycle < 10:
+                        player.image = load_image('images\\player_back.png', -1)
+                    else:
+                        player.image = load_image('images\\player_back_2.png', -1)
+                    player.walk_cycle = (player.walk_cycle + 1) % 20
+                    player.vert_direction = 'up'
+                if event.key == pygame.K_DOWN or event.key == pygame.K_s:
+                    player.move(1, 1)
+                    if pygame.sprite.spritecollideany(player, walls_group):
+                        player.move(1, -1)
+                    if player.walk_cycle < 10:
+                        player.image = load_image('images\\player_front.png', -1)
+                    else:
+                        player.image = load_image('images\\player_front_2.png', -1)
+                    player.walk_cycle = (player.walk_cycle + 1) % 20
+                    player.vert_direction = 'down'
+        camera.update(player)
+        for sprite in all_sprites:
+            camera.apply(sprite)
+        clock.tick(fps)
+        screen.fill(pygame.Color('black'))
+        tiles_group.draw(screen)
+        player_group.draw(screen)
+        pygame.display.flip()
 
 
 menu = Menu()
