@@ -11,6 +11,7 @@ level_names = ['room1', 'room2', 'room3', 'room4', 'room5', 'room6', 'room7', 'r
                'room10']
 player = None
 
+
 def load_image(name, colorkey=None):
     fullname = os.path.join('data', name)
     image = pygame.image.load(fullname).convert()
@@ -39,6 +40,15 @@ class Wall(pygame.sprite.Sprite):
                                                tile_height * pos_y)
 
 
+class Hole(pygame.sprite.Sprite):
+    def __init__(self, tile_type, pos_x, pos_y):
+        super().__init__(tiles_group, all_sprites, hole_group)
+        self.image = tile_images[tile_type]
+        self.rect = self.image.get_rect().move(tile_width * pos_x,
+                                               tile_height * pos_y)
+
+
+
 class Camera:
     # зададим начальный сдвиг камеры
     def __init__(self):
@@ -61,8 +71,10 @@ tiles_group = pygame.sprite.Group()
 player_group = pygame.sprite.Group()
 walls_group = pygame.sprite.Group()
 all_sprites = pygame.sprite.Group()
+hole_group = pygame.sprite.Group()
 tile_images = {'wall': load_image('images\\wall.png'),
-               'empty': load_image('images\\floor.png')}
+               'empty': load_image('images\\floor.png'),
+               'hole': load_image('images\\hole.png')}
 tile_width = 64
 tile_height = 64
 mw = 15
@@ -73,6 +85,7 @@ def load_level(level):
     with open('data/levels/' + level, 'r') as mapFile:
         level_map = [list(line.strip()) for line in mapFile]
     return list(level_map)
+
 
 def draw_room(level, i, j, t):
     global player
@@ -94,21 +107,26 @@ def draw_room(level, i, j, t):
             elif level[x][y] == '@':
                 Tile('empty', x + j * 20, y + i * 20)
                 player = Player(x + j * 20, y + i * 20)
+            elif level[x][y] == '$':
+                Hole('hole', x + j * 20 + ax, y + i * 20 + ay)
+
 
 
 def draw_level():
     names = level_names
     shuffle(names)
-    k = randint(3, 7)
+    k = randint(3, 7) + 1
     names = names[:k]
     level_map = []
     for i in range(9):
         level_map.append([''] * 9)
     level_map[3][3] = 'start'
+    names.append('end')
     n = 0
-    while n < k:
+    while n <= k:
         x, y = randint(1, 7), randint(1, 7)
-        if (level_map[y + 1][x] != '' or level_map[y - 1][x] != '' or level_map[y][x + 1] != '' or level_map[y][x - 1] != '') and level_map[y][x] == '':
+        if (level_map[y + 1][x] != '' or level_map[y - 1][x] != '' or level_map[y][x + 1] != '' or
+            level_map[y][x - 1] != '') and level_map[y][x] == '':
             level_map[y][x] = names[n]
             n += 1
     for i in range(len(level_map)):
@@ -130,7 +148,6 @@ def draw_level():
                     level[6][0] = '.'
                     level[7][0] = '.'
                     level[8][0] = '.'
-
                 if level_map[i][j + 1] != '':
                     level[14][6] = '.'
                     level[14][7] = '.'
@@ -140,7 +157,6 @@ def draw_level():
                     level[0][6] = '.'
                     level[0][7] = '.'
                     level[0][8] = '.'
-
                 draw_room(level, i, j, 'room')
 
 
