@@ -1,18 +1,15 @@
 import os
 import pygame
-from PIL import Image
+from random import shuffle, randint
 
 pygame.init()
 width, height = 800, 600
 screen = pygame.display.set_mode((width, height))
 clock = pygame.time.Clock()
 fps = 60
-
-
-def mirror():
-    i = Image.open('data\\images\\player.png')
-    i.transpose(Image.FLIP_LEFT_RIGHT).save('data\\images\\player.png')
-
+level_names = ['room1', 'room2', 'room3', 'room4', 'room5', 'room6', 'room7', 'room8', 'room9',
+               'room10']
+player = None
 
 def load_image(name, colorkey=None):
     fullname = os.path.join('data', name)
@@ -72,25 +69,79 @@ mw = 15
 mh = 15
 
 
-def load_level():
-    with open('data/levels/basic.txt', 'r') as mapFile:
-        level_map = [line.strip() for line in mapFile]
-    max_width = max(map(len, level_map))
-    return list(map(lambda x: x.ljust(max_width, '.'), level_map))
+def load_level(level):
+    with open('data/levels/' + level, 'r') as mapFile:
+        level_map = [list(line.strip()) for line in mapFile]
+    return list(level_map)
+
+def draw_room(level, i, j, t):
+    global player
+    if t == 'room':
+        ax = 0
+        ay = 0
+    elif t == 'hor':
+        ax = 15
+        ay = 5
+    else:
+        ax = 5
+        ay = 15
+    for y in range(len(level)):
+        for x in range(len(level[0])):
+            if level[x][y] == '.':
+                Tile('empty', x + j * 20 + ax, y + i * 20 + ay)
+            elif level[x][y] == '#':
+                Wall('wall', x + j * 20 + ax, y + i * 20 + ay)
+            elif level[x][y] == '@':
+                Tile('empty', x + j * 20, y + i * 20)
+                player = Player(x + j * 20, y + i * 20)
 
 
 def draw_level():
-    global player
-    level = load_level()
-    for y in range(len(level)):
-        for x in range(len(level[y])):
-            if level[y][x] == '.':
-                Tile('empty', x, y)
-            elif level[y][x] == '#':
-                Wall('wall', x, y)
-            elif level[y][x] == '@':
-                Tile('empty', x, y, )
-                player = Player(x, y)
+    names = level_names
+    shuffle(names)
+    k = randint(3, 7)
+    names = names[:k]
+    level_map = []
+    for i in range(9):
+        level_map.append([''] * 9)
+    level_map[3][3] = 'start'
+    n = 0
+    while n < k:
+        x, y = randint(1, 7), randint(1, 7)
+        if (level_map[y + 1][x] != '' or level_map[y - 1][x] != '' or level_map[y][x + 1] != '' or level_map[y][x - 1] != '') and level_map[y][x] == '':
+            level_map[y][x] = names[n]
+            n += 1
+    for i in range(len(level_map)):
+        for j in range(len(level_map[0])):
+            if level_map[i][j] != '':
+                level_map[i][j] = load_level(level_map[i][j] + '.txt')
+    hor = load_level('hor_corridor.txt')
+    vert = load_level('vert_corridor.txt')
+    for i in range(len(level_map)):
+        for j in range(len(level_map[0])):
+            if level_map[i][j] != '':
+                level = level_map[i][j]
+                if level_map[i + 1][j] != '':
+                    level[6][14] = '.'
+                    level[7][14] = '.'
+                    level[8][14] = '.'
+                    draw_room(hor, i, j, 'vert')
+                if level_map[i - 1][j] != '':
+                    level[6][0] = '.'
+                    level[7][0] = '.'
+                    level[8][0] = '.'
+
+                if level_map[i][j + 1] != '':
+                    level[14][6] = '.'
+                    level[14][7] = '.'
+                    level[14][8] = '.'
+                    draw_room(vert, i, j, 'hor')
+                if level_map[i][j - 1] != '':
+                    level[0][6] = '.'
+                    level[0][7] = '.'
+                    level[0][8] = '.'
+
+                draw_room(level, i, j, 'room')
 
 
 class Player(pygame.sprite.Sprite):
@@ -165,7 +216,6 @@ def run_game():
     global screen, in_game
     camera = Camera()
     screen = pygame.display.set_mode((1920, 1080), pygame.FULLSCREEN)
-    load_level()
     draw_level()
     while in_game:
         for event in pygame.event.get():
