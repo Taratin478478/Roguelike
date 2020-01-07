@@ -1,4 +1,6 @@
 import os
+from pprint import pprint
+
 import pygame
 from random import shuffle, randint
 
@@ -67,6 +69,7 @@ class Camera:
 
 
 def reset_groups():
+    global tiles_group, player_group, walls_group, all_sprites, hole_group
     tiles_group = pygame.sprite.Group()
     player_group = pygame.sprite.Group()
     walls_group = pygame.sprite.Group()
@@ -117,7 +120,7 @@ def draw_room(level, i, j, t):
                 Tile('empty', x + j * 20, y + i * 20)
                 player = Player(x + j * 20, y + i * 20)
             elif level[x][y] == '$':
-                Hole('hole', x + j * 20 + ax, y + i * 20 + ay)
+                Hole('hole', x + j * 20, y + i * 20)
 
 
 
@@ -167,6 +170,7 @@ def draw_level():
                     level[0][7] = '.'
                     level[0][8] = '.'
                 draw_room(level, i, j, 'room')
+    pprint(level_map)
 
 
 class Player(pygame.sprite.Sprite):
