@@ -66,12 +66,21 @@ class Camera:
         self.dy = -(target.rect.y + target.rect.h // 2 - 1080 // 2)
 
 
-in_game = False
+def reset_groups():
+    tiles_group = pygame.sprite.Group()
+    player_group = pygame.sprite.Group()
+    walls_group = pygame.sprite.Group()
+    all_sprites = pygame.sprite.Group()
+    hole_group = pygame.sprite.Group()
+
+
+floor = 0
 tiles_group = pygame.sprite.Group()
 player_group = pygame.sprite.Group()
 walls_group = pygame.sprite.Group()
 all_sprites = pygame.sprite.Group()
 hole_group = pygame.sprite.Group()
+in_game = False
 tile_images = {'wall': load_image('images\\wall.png'),
                'empty': load_image('images\\floor.png'),
                'hole': load_image('images\\hole.png')}
@@ -228,11 +237,17 @@ class Menu:
             pygame.display.flip()
 
 
+def generate_map():
+    global floor
+    reset_groups()
+    draw_level()
+    floor += 1
+
 def run_game():
     global screen, in_game
     camera = Camera()
     screen = pygame.display.set_mode((1920, 1080), pygame.FULLSCREEN)
-    draw_level()
+    generate_map()
     while in_game:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -280,12 +295,17 @@ def run_game():
                         player.image = load_image('images\\player_front_2.png', -1)
                     player.walk_cycle = (player.walk_cycle + 1) % 20
                     player.vert_direction = 'down'
+                if pygame.sprite.spritecollideany(player, hole_group):
+                    generate_map()
         camera.update(player)
         for sprite in all_sprites:
             camera.apply(sprite)
+        font = pygame.font.Font(None, 55)
         clock.tick(fps)
         screen.fill(pygame.Color('black'))
         tiles_group.draw(screen)
+        screen.blit(font.render("Этаж " + str(floor), 1, pygame.Color('red')),
+                    (1730, 20))
         player_group.draw(screen)
         pygame.display.flip()
 
