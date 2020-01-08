@@ -14,6 +14,7 @@ level_names = ['room1', 'room2', 'room3', 'room4', 'room5', 'room6', 'room7', 'r
 player = None
 
 
+
 def load_image(name, colorkey=None):
     fullname = os.path.join('data', name)
     image = pygame.image.load(fullname).convert()
@@ -91,6 +92,7 @@ tile_width = 64
 tile_height = 64
 mw = 15
 mh = 15
+arrow = load_image('images\\scope.png', -1)
 
 
 def load_level(level):
@@ -252,12 +254,15 @@ def run_game():
     camera = Camera()
     screen = pygame.display.set_mode((1920, 1080), pygame.FULLSCREEN)
     generate_map()
+    pygame.mouse.set_visible(False)
     while in_game:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 in_game = False
             if event.type == pygame.MOUSEBUTTONDOWN:
                 pass
+            if event.type == pygame.MOUSEMOTION:
+                mouse_pos = event.pos
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_RIGHT or event.key == pygame.K_d:
                     player.move(0, 1)
@@ -311,6 +316,7 @@ def run_game():
         screen.blit(font.render("Этаж " + str(floor), 1, pygame.Color('red')),
                     (1730, 20))
         player_group.draw(screen)
+        screen.blit(arrow, mouse_pos)
         pygame.display.flip()
 
 
