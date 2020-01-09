@@ -1,8 +1,8 @@
+import math
 import os
-from pprint import pprint
-
 import pygame
 from random import shuffle, randint
+from PIL import Image
 
 pygame.init()
 width, height = 800, 600
@@ -12,7 +12,6 @@ fps = 60
 level_names = ['room1', 'room2', 'room3', 'room4', 'room5', 'room6', 'room7', 'room8', 'room9',
                'room10']
 player = None
-
 
 
 def load_image(name, colorkey=None):
@@ -51,7 +50,6 @@ class Hole(pygame.sprite.Sprite):
                                                tile_height * pos_y)
 
 
-
 class Camera:
     # зададим начальный сдвиг камеры
     def __init__(self):
@@ -70,12 +68,13 @@ class Camera:
 
 
 def reset_groups():
-    global tiles_group, player_group, walls_group, all_sprites, hole_group
+    global tiles_group, player_group, walls_group, all_sprites, hole_group, gun_group
     tiles_group = pygame.sprite.Group()
     player_group = pygame.sprite.Group()
     walls_group = pygame.sprite.Group()
     all_sprites = pygame.sprite.Group()
     hole_group = pygame.sprite.Group()
+    gun_group = pygame.sprite.Group()
 
 
 floor = 0
@@ -84,6 +83,7 @@ player_group = pygame.sprite.Group()
 walls_group = pygame.sprite.Group()
 all_sprites = pygame.sprite.Group()
 hole_group = pygame.sprite.Group()
+gun_group = pygame.sprite.Group()
 in_game = False
 tile_images = {'wall': load_image('images\\wall.png'),
                'empty': load_image('images\\floor.png'),
@@ -102,7 +102,7 @@ def load_level(level):
 
 
 def draw_room(level, i, j, t):
-    global player
+    global player, gun
     if t == 'room':
         ax = 0
         ay = 0
@@ -121,9 +121,9 @@ def draw_room(level, i, j, t):
             elif level[x][y] == '@':
                 Tile('empty', x + j * 20, y + i * 20)
                 player = Player(x + j * 20, y + i * 20)
+                gun = Gun(x + j * 20, y + i * 20)
             elif level[x][y] == '$':
                 Hole('hole', x + j * 20, y + i * 20)
-
 
 
 def draw_level():
@@ -172,7 +172,6 @@ def draw_level():
                     level[0][7] = '.'
                     level[0][8] = '.'
                 draw_room(level, i, j, 'room')
-    pprint(level_map)
 
 
 class Player(pygame.sprite.Sprite):
@@ -181,12 +180,39 @@ class Player(pygame.sprite.Sprite):
         pygame.key.set_repeat(10, 1)
         self.image = load_image('images\\player.png', -1)
         self.rect = self.image.get_rect().move(tile_width * pos_x + 15, tile_height * pos_y + 5)
-        self.hor_direction = 'right'
-        self.vert_direction = 'down'
+        self.direction = 'right'
         self.walk_cycle = 0
+        print(self.rect)
 
     def move(self, dir, n):
         self.rect[dir] += 5 * n
+
+
+class Gun(pygame.sprite.Sprite):
+    def __init__(self, pos_x, pos_y):
+        super().__init__(gun_group, all_sprites)
+        self.normal_image = load_image('images\\pistol.png', -1)
+        self.image = load_image('images\\pistol.png', -1)
+        self.x = tile_width * pos_x + 75
+        self.y = tile_height * pos_y + 40
+        print(self.x, self.y)
+        self.rect = self.image.get_rect().move(self.x, self.y)
+        print(self.rect)
+
+    def move(self, dir, n):
+        self.rect[dir] += 5 * n
+
+    def rotate(self):
+        mouse_x, mouse_y = pygame.mouse.get_pos()
+        rel_x, rel_y = mouse_x - self.rect.left, mouse_y - self.rect.top
+        angle = (180 / math.pi) * -math.atan2(rel_y, rel_x)
+        print(angle)
+        if angle < -90 or angle > 90:
+            self.image = pygame.transform.flip(self.normal_image, True, False)
+            self.image = pygame.transform.rotate(self.image, int(angle) - 180)
+        else:
+            self.image = pygame.transform.rotate(self.normal_image, int(angle))
+        self.rect = self.image.get_rect(center=(983, 560))
 
 
 class Menu:
@@ -249,6 +275,7 @@ def generate_map():
     draw_level()
     floor += 1
 
+
 def run_game():
     global screen, in_game
     camera = Camera()
@@ -263,47 +290,56 @@ def run_game():
                 pass
             if event.type == pygame.MOUSEMOTION:
                 mouse_pos = event.pos
+                gun.rotate()
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_RIGHT or event.key == pygame.K_d:
                     player.move(0, 1)
+                    gun.move(0, 1)
                     if pygame.sprite.spritecollideany(player, walls_group):
                         player.move(0, -1)
+                        gun.move(0, -1)
                     if player.walk_cycle < 10:
                         player.image = load_image('images\\player.png', -1)
                     else:
                         player.image = load_image('images\\player_2.png', -1)
                     player.walk_cycle = (player.walk_cycle + 1) % 20
-                    player.hor_direction = 'right'
+                    player.direction = 'right'
                 if event.key == pygame.K_LEFT or event.key == pygame.K_a:
                     player.move(0, -1)
+                    gun.move(0, -1)
                     if pygame.sprite.spritecollideany(player, walls_group):
                         player.move(0, 1)
+                        gun.move(0, 1)
                     if player.walk_cycle < 10:
                         player.image = load_image('images\\player_left.png', -1)
                     else:
                         player.image = load_image('images\\player_left_2.png', -1)
                     player.walk_cycle = (player.walk_cycle + 1) % 20
-                    player.hor_direction = 'left'
+                    player.direction = 'left'
                 if event.key == pygame.K_UP or event.key == pygame.K_w:
                     player.move(1, -1)
+                    gun.move(1, -1)
                     if pygame.sprite.spritecollideany(player, walls_group):
                         player.move(1, 1)
+                        gun.move(1, 1)
                     if player.walk_cycle < 10:
                         player.image = load_image('images\\player_back.png', -1)
                     else:
                         player.image = load_image('images\\player_back_2.png', -1)
                     player.walk_cycle = (player.walk_cycle + 1) % 20
-                    player.vert_direction = 'up'
+                    player.direction = 'up'
                 if event.key == pygame.K_DOWN or event.key == pygame.K_s:
                     player.move(1, 1)
+                    gun.move(1, 1)
                     if pygame.sprite.spritecollideany(player, walls_group):
                         player.move(1, -1)
+                        gun.move(1, -1)
                     if player.walk_cycle < 10:
                         player.image = load_image('images\\player_front.png', -1)
                     else:
                         player.image = load_image('images\\player_front_2.png', -1)
                     player.walk_cycle = (player.walk_cycle + 1) % 20
-                    player.vert_direction = 'down'
+                    player.direction = 'down'
                 if pygame.sprite.spritecollideany(player, hole_group):
                     generate_map()
         camera.update(player)
@@ -315,7 +351,13 @@ def run_game():
         tiles_group.draw(screen)
         screen.blit(font.render("Этаж " + str(floor), 1, pygame.Color('red')),
                     (1730, 20))
-        player_group.draw(screen)
+        if player.direction == 'up':
+            gun_group.draw(screen)
+            player_group.draw(screen)
+        else:
+            player_group.draw(screen)
+            gun_group.draw(screen)
+
         screen.blit(arrow, mouse_pos)
         pygame.display.flip()
 
