@@ -1,7 +1,7 @@
 import math
 import os
 import pygame
-from random import shuffle, randint
+from random import shuffle, randint, randrange, uniform
 from PIL import Image
 
 pygame.init()
@@ -75,6 +75,7 @@ def reset_groups():
     all_sprites = pygame.sprite.Group()
     hole_group = pygame.sprite.Group()
     gun_group = pygame.sprite.Group()
+    bullet_group = pygame.sprite.Group()
 
 
 floor = 0
@@ -84,6 +85,7 @@ walls_group = pygame.sprite.Group()
 all_sprites = pygame.sprite.Group()
 hole_group = pygame.sprite.Group()
 gun_group = pygame.sprite.Group()
+bullet_group = pygame.sprite.Group()
 in_game = False
 tile_images = {'wall': load_image('images\\wall.png'),
                'empty': load_image('images\\floor.png'),
@@ -206,13 +208,42 @@ class Gun(pygame.sprite.Sprite):
         mouse_x, mouse_y = pygame.mouse.get_pos()
         rel_x, rel_y = mouse_x - self.rect.left, mouse_y - self.rect.top
         angle = (180 / math.pi) * -math.atan2(rel_y, rel_x)
-        print(angle)
         if angle < -90 or angle > 90:
             self.image = pygame.transform.flip(self.normal_image, True, False)
             self.image = pygame.transform.rotate(self.image, int(angle) - 180)
         else:
             self.image = pygame.transform.rotate(self.normal_image, int(angle))
         self.rect = self.image.get_rect(center=(983, 560))
+
+
+class Bullet(pygame.sprite.Sprite):
+    def __init__(self, x, y, v):
+        super().__init__(bullet_group, all_sprites)
+        self.x = 983
+        self.y = 560
+        x = uniform(x - x / 50, x + x / 50)
+        y = uniform(y - y / 50, y + y / 50)
+        self.rx = x - self.x
+        self.ry = y - self.y
+        g = ((x - self.x) ** 2 + (self.y - y) ** 2) ** 0.5
+        self.vx = (x - self.x) / g * v
+        self.vy = (y - self.y) / g * v
+        print(g, self.x, self.vx, self.y, self.vy)
+        self.image = load_image('images\\pistol_bullet.png', -1)
+        self.normal_image = load_image('images\\pistol_bullet.png', -1)
+        self.rect = self.image.get_rect().move(self.x, self.y)
+
+    def update(self):
+        self.x = int(self.x + self.vx)
+        self.y = int(self.y + self.vy)
+        angle = (180 / math.pi) * math.atan2(self.rx, self.ry)
+        self.image = pygame.transform.flip(self.normal_image, False, True)
+        self.image = pygame.transform.rotate(self.image, int(angle))
+        self.rect.left = self.x
+        self.rect.top = self.y
+
+
+
 
 
 class Menu:
@@ -287,7 +318,7 @@ def run_game():
             if event.type == pygame.QUIT:
                 in_game = False
             if event.type == pygame.MOUSEBUTTONDOWN:
-                pass
+                Bullet(event.pos[0], event.pos[1], 20)
             if event.type == pygame.MOUSEMOTION:
                 mouse_pos = event.pos
                 gun.rotate()
@@ -357,7 +388,9 @@ def run_game():
         else:
             player_group.draw(screen)
             gun_group.draw(screen)
-
+        bullet_group.update()
+        pygame.sprite.groupcollide(bullet_group, walls_group, True, False)
+        bullet_group.draw(screen)
         screen.blit(arrow, mouse_pos)
         pygame.display.flip()
 
