@@ -1,7 +1,7 @@
 import math
 import os
 import pygame
-from random import shuffle, randint, randrange, uniform
+from random import shuffle, randint, uniform
 from PIL import Image
 
 pygame.init()
@@ -71,7 +71,7 @@ class Camera:
 
 
 def reset_groups():
-    global tiles_group, player_group, walls_group, all_sprites, hole_group, gun_group, bullet_group, enemy_group
+    global tiles_group, player_group, walls_group, all_sprites, hole_group, gun_group, bullet_group, enemy_group, dead_group
     tiles_group = pygame.sprite.Group()
     player_group = pygame.sprite.Group()
     walls_group = pygame.sprite.Group()
@@ -80,6 +80,7 @@ def reset_groups():
     gun_group = pygame.sprite.Group()
     bullet_group = pygame.sprite.Group()
     enemy_group = pygame.sprite.Group()
+    dead_group = pygame.sprite.Group()
 
 
 floor = 0
@@ -91,6 +92,7 @@ hole_group = pygame.sprite.Group()
 gun_group = pygame.sprite.Group()
 bullet_group = pygame.sprite.Group()
 enemy_group = pygame.sprite.Group()
+dead_group = pygame.sprite.Group()
 in_game = False
 tile_images = {'wall': load_image('images\\wall.png'),
                'empty': load_image('images\\floor.png'),
@@ -198,29 +200,41 @@ class Enemy(pygame.sprite.Sprite):
         self.walk_cycle = 0
         self.v = 2
         self.sx, self.sy = self.rect.center
-        self.hp = 20
+        self.hp = 20 + 2 * (floor - 1)
         self.room = [pos_x // 20, pos_y // 20]
+        self.a = 256
 
     def update(self):
-        if self.room == player.room and not player.in_corridor:
-            x, y = player.rect.center
-            g = ((x - self.sx) ** 2 + (self.sy - y) ** 2) ** 0.5
-            if g != 0:
-                vx = (x - self.sx) / g * self.v
-                vy = (y - self.sy) / g * self.v
-            else:
-                vx, vy = 0, 0
-            self.sx, self.sy = self.sx + vx, self.sy + vy
-            self.rect.center = (self.sx, self.sy)
-            if pygame.sprite.spritecollideany(self, walls_group):
-                self.sx = self.sx - vx
+        if self.hp > 0:
+            if self.room == player.room and not player.in_corridor:
+                x, y = player.rect.center
+                g = ((x - self.sx) ** 2 + (self.sy - y) ** 2) ** 0.5
+                if g != 0:
+                    vx = (x - self.sx) / g * self.v
+                    vy = (y - self.sy) / g * self.v
+                else:
+                    vx, vy = 0, 0
+                self.sx, self.sy = self.sx + vx, self.sy + vy
                 self.rect.center = (self.sx, self.sy)
                 if pygame.sprite.spritecollideany(self, walls_group):
-                    self.sx, self.sy = self.sx + vx, self.sy - vy
+                    self.sx = self.sx - vx
                     self.rect.center = (self.sx, self.sy)
                     if pygame.sprite.spritecollideany(self, walls_group):
-                        self.sx = self.sx - vx
+                        self.sx, self.sy = self.sx + vx, self.sy - vy
                         self.rect.center = (self.sx, self.sy)
+                        if pygame.sprite.spritecollideany(self, walls_group):
+                            self.sx = self.sx - vx
+                            self.rect.center = (self.sx, self.sy)
+        else:
+            if self.a == 256:
+                enemy_group.remove(self)
+                dead_group.add(self)
+            if self.a > 0:
+                self.a -= 5
+                self.image.set_alpha(self.a)
+            else:
+                self.kill()
+
 
 
 class Player(pygame.sprite.Sprite):
@@ -242,14 +256,11 @@ class Player(pygame.sprite.Sprite):
             self.x += 5 * n
         else:
             self.y += 5 * n
-
-        self.in_corridor = (self.x + 99) % 1280 > 895 or (self.y + 82) % 1280 > 895 or (self.x + 99) % 1280 < 64 or (self.y + 82) % 1280 < 64 or self.x % 1280 < 64 or self.y % 1280 < 64 or self.x % 1280 > 895 or self.y % 1280 > 895
+        self.in_corridor = (self.x + 99) % 1280 > 895 or (self.y + 82) % 1280 > 895 or\
+                           (self.x + 99) % 1280 < 64 or (self.y + 82) % 1280 < 64 or self.x %\
+                           1280 < 64 or self.y % 1280 < 64 or self.x % 1280\
+                           > 895 or self.y % 1280 > 895
         self.room = [self.x // 1280, self.y // 1280]
-        # if self.room_1 != self.room_2:
-        print(self.rect.width, self.rect.height, self.rect.left, self.rect.top)
-        print(self.room, self.x, self.y, self.in_corridor)
-        print((self.x + 99) % 1280 > 895, (self.y + 82) % 1280 > 895, (self.x + 99) % 1280 < 64, (self.y + 82) % 1280 < 64)
-        print((self.x + 99) % 1280, (self.y + 82) % 1280, (self.x + 99) % 1280, (self.y + 82) % 1280)
 
 
 class Gun(pygame.sprite.Sprite):
@@ -380,6 +391,7 @@ def generate_map():
 
 def run_game():
     global screen, in_game
+    mouse_pos = (0, 0)
     camera = Camera()
     screen = pygame.display.set_mode((1920, 1080), pygame.FULLSCREEN)
     generate_map()
@@ -453,6 +465,7 @@ def run_game():
         tiles_group.draw(screen)
         screen.blit(font.render("Этаж " + str(floor), 1, pygame.Color('red')),
                     (1730, 20))
+        dead_group.update()
         enemy_group.update()
         bullet_group.update()
         collide = pygame.sprite.groupcollide(bullet_group, enemy_group, True, False)
@@ -461,9 +474,8 @@ def run_game():
             damage = keys[i].damage
             for j in collide[keys[i]]:
                 j.hp -= damage
-                if j.hp <= 0:
-                    j.kill()
         enemy_group.draw(screen)
+        dead_group.draw(screen)
         if player.direction == 'up':
             gun_group.draw(screen)
             player_group.draw(screen)
