@@ -191,7 +191,7 @@ def draw_level():
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, pos_x, pos_y):
         super().__init__(enemy_group, all_sprites)
-        self.image = load_image('images\\player.png', -1)
+        self.image = load_image('images\\slime.png', -1)
         self.rect = self.image.get_rect().move(tile_width * pos_x,
                                                tile_height * pos_y)
         self.direction = 'right'
@@ -199,17 +199,28 @@ class Enemy(pygame.sprite.Sprite):
         self.v = 2
         self.sx, self.sy = self.rect.center
         self.hp = 20
+        self.room = [pos_x // 20, pos_y // 20]
 
     def update(self):
-        x, y = player.rect.center
-        g = ((x - self.sx) ** 2 + (self.sy - y) ** 2) ** 0.5
-        if g != 0:
-            vx = (x - self.sx) / g * self.v
-            vy = (y - self.sy) / g * self.v
-        else:
-            vx, vy = 0, 0
-        self.sx, self.sy = self.sx + vx, self.sy + vy
-        self.rect.center = (self.sx, self.sy)
+        if self.room == player.room and not player.in_corridor:
+            x, y = player.rect.center
+            g = ((x - self.sx) ** 2 + (self.sy - y) ** 2) ** 0.5
+            if g != 0:
+                vx = (x - self.sx) / g * self.v
+                vy = (y - self.sy) / g * self.v
+            else:
+                vx, vy = 0, 0
+            self.sx, self.sy = self.sx + vx, self.sy + vy
+            self.rect.center = (self.sx, self.sy)
+            if pygame.sprite.spritecollideany(self, walls_group):
+                self.sx = self.sx - vx
+                self.rect.center = (self.sx, self.sy)
+                if pygame.sprite.spritecollideany(self, walls_group):
+                    self.sx, self.sy = self.sx + vx, self.sy - vy
+                    self.rect.center = (self.sx, self.sy)
+                    if pygame.sprite.spritecollideany(self, walls_group):
+                        self.sx = self.sx - vx
+                        self.rect.center = (self.sx, self.sy)
 
 
 class Player(pygame.sprite.Sprite):
@@ -217,13 +228,28 @@ class Player(pygame.sprite.Sprite):
         super().__init__(player_group, all_sprites)
         pygame.key.set_repeat(10, 1)
         self.image = load_image('images\\player.png', -1)
-        self.rect = self.image.get_rect().move(tile_width * pos_x + 15,
-                                               tile_height * pos_y + 5)
+        self.x = tile_width * pos_x
+        self.y = tile_height * pos_y
+        self.rect = self.image.get_rect().move(self.x, self.y)
         self.direction = 'right'
+        self.room = [self.x // 1280, self.y // 1280]
+        self.in_corridor = False
         self.walk_cycle = 0
 
     def move(self, dir, n):
         self.rect[dir] += 5 * n
+        if dir == 0:
+            self.x += 5 * n
+        else:
+            self.y += 5 * n
+
+        self.in_corridor = (self.x + 99) % 1280 > 895 or (self.y + 82) % 1280 > 895 or (self.x + 99) % 1280 < 64 or (self.y + 82) % 1280 < 64 or self.x % 1280 < 64 or self.y % 1280 < 64 or self.x % 1280 > 895 or self.y % 1280 > 895
+        self.room = [self.x // 1280, self.y // 1280]
+        # if self.room_1 != self.room_2:
+        print(self.rect.width, self.rect.height, self.rect.left, self.rect.top)
+        print(self.room, self.x, self.y, self.in_corridor)
+        print((self.x + 99) % 1280 > 895, (self.y + 82) % 1280 > 895, (self.x + 99) % 1280 < 64, (self.y + 82) % 1280 < 64)
+        print((self.x + 99) % 1280, (self.y + 82) % 1280, (self.x + 99) % 1280, (self.y + 82) % 1280)
 
 
 class Gun(pygame.sprite.Sprite):
