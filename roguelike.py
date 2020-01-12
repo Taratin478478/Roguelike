@@ -68,7 +68,7 @@ class Camera:
 
 
 def reset_groups():
-    global tiles_group, player_group, walls_group, all_sprites, hole_group, gun_group, bullet_group
+    global tiles_group, player_group, walls_group, all_sprites, hole_group, gun_group, bullet_group, enemy_group
     tiles_group = pygame.sprite.Group()
     player_group = pygame.sprite.Group()
     walls_group = pygame.sprite.Group()
@@ -76,6 +76,7 @@ def reset_groups():
     hole_group = pygame.sprite.Group()
     gun_group = pygame.sprite.Group()
     bullet_group = pygame.sprite.Group()
+    enemy_group = pygame.sprite.Group()
 
 
 floor = 0
@@ -86,6 +87,7 @@ all_sprites = pygame.sprite.Group()
 hole_group = pygame.sprite.Group()
 gun_group = pygame.sprite.Group()
 bullet_group = pygame.sprite.Group()
+enemy_group = pygame.sprite.Group()
 in_game = False
 tile_images = {'wall': load_image('images\\wall.png'),
                'empty': load_image('images\\floor.png'),
@@ -126,6 +128,9 @@ def draw_room(level, i, j, t):
                 gun = Pistol(x + j * 20, y + i * 20)
             elif level[x][y] == '$':
                 Hole('hole', x + j * 20, y + i * 20)
+            elif level[x][y] == '%':
+                Tile('empty', x + j * 20, y + i * 20)
+                Enemy(x + j * 20, y + i * 20)
 
 
 def draw_level():
@@ -154,7 +159,16 @@ def draw_level():
     for i in range(len(level_map)):
         for j in range(len(level_map[0])):
             if level_map[i][j] != '':
-                level = level_map[i][j]
+                ea = level_map[i][j] not in ['start', 'end']
+                print(level_map[i][j], ea)
+                level = load_level(level_map[i][j] + '.txt')
+                ne = randint(2, 6)
+                while ne > 0 and ea:
+                    x = randint(1, 13)
+                    y = randint(1, 13)
+                    if level[x][y] == '.':
+                        level[x][y] = '%'
+                        ne -= 1
                 if level_map[i + 1][j] != '':
                     level[6][14] = '.'
                     level[7][14] = '.'
@@ -176,12 +190,38 @@ def draw_level():
                 draw_room(level, i, j, 'room')
 
 
+class Enemy(pygame.sprite.Sprite):
+    def __init__(self, pos_x, pos_y):
+        super().__init__(enemy_group, all_sprites)
+        self.image = load_image('images\\player.png', -1)
+        self.rect = self.image.get_rect().move(tile_width * pos_x,
+                                               tile_height * pos_y)
+        print(self.rect)
+        self.direction = 'right'
+        self.walk_cycle = 0
+        self.v = 1
+        self.sx, self.sy = self.rect.center
+
+    def update(self):
+        x, y = player.rect.center
+        g = ((x - self.sx) ** 2 + (self.sy - y) ** 2) ** 0.5
+        if g != 0:
+            vx = (x - self.sx) / g * self.v
+            vy = (y - self.sy) / g * self.v
+        else:
+            vx, vy = 0, 0
+        print(x, self.sx, vx, y, self.sy, vy)
+        self.sx, self.sy = self.sx + vx, self.sy + vy
+        self.rect.center = (self.sx, self.sy)
+
+
 class Player(pygame.sprite.Sprite):
     def __init__(self, pos_x, pos_y):
         super().__init__(player_group, all_sprites)
         pygame.key.set_repeat(10, 1)
         self.image = load_image('images\\player.png', -1)
-        self.rect = self.image.get_rect().move(tile_width * pos_x + 15, tile_height * pos_y + 5)
+        self.rect = self.image.get_rect().move(tile_width * pos_x + 15,
+                                               tile_height * pos_y + 5)
         self.direction = 'right'
         self.walk_cycle = 0
         print(self.rect)
@@ -197,7 +237,9 @@ class Gun(pygame.sprite.Sprite):
         self.image = load_image('images\\pistol.png', -1)
         self.x = tile_width * pos_x + 75
         self.y = tile_height * pos_y + 40
+        print(self.x, self.y)
         self.rect = self.image.get_rect().move(self.x, self.y)
+        print(self.rect)
 
     def move(self, dir, n):
         self.rect[dir] += 5 * n
@@ -240,6 +282,8 @@ class Bullet(pygame.sprite.Sprite):
         self.rect = self.image.get_rect().move(self.x, self.y)
 
     def update(self):
+        self.x = int(self.x + self.vx)
+        self.y = int(self.y + self.vy)
         angle = (180 / math.pi) * math.atan2(self.rx, self.ry)
         self.image = pygame.transform.flip(self.normal_image, False, True)
         self.image = pygame.transform.rotate(self.image, int(angle))
@@ -383,6 +427,8 @@ def run_game():
         tiles_group.draw(screen)
         screen.blit(font.render("Этаж " + str(floor), 1, pygame.Color('red')),
                     (1730, 20))
+        enemy_group.update()
+        enemy_group.draw(screen)
         if player.direction == 'up':
             gun_group.draw(screen)
             player_group.draw(screen)
@@ -392,7 +438,7 @@ def run_game():
         bullet_group.update()
         pygame.sprite.groupcollide(bullet_group, walls_group, True, False)
         bullet_group.draw(screen)
-        screen.blit(arrow, (mouse_pos[0] - 32, mouse_pos[1] - 32))
+        screen.blit(arrow, mouse_pos)
         pygame.display.flip()
 
 
