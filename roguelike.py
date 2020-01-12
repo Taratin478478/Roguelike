@@ -60,6 +60,9 @@ class Camera:
     def apply(self, obj):
         obj.rect.x = obj.rect.x + self.dx
         obj.rect.y = obj.rect.y + self.dy
+        if type(obj) in [Enemy, Bullet]:
+            obj.sx += self.dx
+            obj.sy += self.dy
 
     # позиционировать камеру на объекте target
     def update(self, target):
@@ -150,17 +153,12 @@ def draw_level():
             level_map[y][x - 1] != '') and level_map[y][x] == '':
             level_map[y][x] = names[n]
             n += 1
-    for i in range(len(level_map)):
-        for j in range(len(level_map[0])):
-            if level_map[i][j] != '':
-                level_map[i][j] = load_level(level_map[i][j] + '.txt')
     hor = load_level('hor_corridor.txt')
     vert = load_level('vert_corridor.txt')
     for i in range(len(level_map)):
         for j in range(len(level_map[0])):
             if level_map[i][j] != '':
                 ea = level_map[i][j] not in ['start', 'end']
-                print(level_map[i][j], ea)
                 level = load_level(level_map[i][j] + '.txt')
                 ne = randint(2, 6)
                 while ne > 0 and ea:
@@ -196,11 +194,11 @@ class Enemy(pygame.sprite.Sprite):
         self.image = load_image('images\\player.png', -1)
         self.rect = self.image.get_rect().move(tile_width * pos_x,
                                                tile_height * pos_y)
-        print(self.rect)
         self.direction = 'right'
         self.walk_cycle = 0
-        self.v = 1
+        self.v = 2
         self.sx, self.sy = self.rect.center
+        self.hp = 20
 
     def update(self):
         x, y = player.rect.center
@@ -210,7 +208,6 @@ class Enemy(pygame.sprite.Sprite):
             vy = (y - self.sy) / g * self.v
         else:
             vx, vy = 0, 0
-        print(x, self.sx, vx, y, self.sy, vy)
         self.sx, self.sy = self.sx + vx, self.sy + vy
         self.rect.center = (self.sx, self.sy)
 
@@ -224,7 +221,6 @@ class Player(pygame.sprite.Sprite):
                                                tile_height * pos_y + 5)
         self.direction = 'right'
         self.walk_cycle = 0
-        print(self.rect)
 
     def move(self, dir, n):
         self.rect[dir] += 5 * n
@@ -237,9 +233,9 @@ class Gun(pygame.sprite.Sprite):
         self.image = load_image('images\\pistol.png', -1)
         self.x = tile_width * pos_x + 75
         self.y = tile_height * pos_y + 40
-        print(self.x, self.y)
         self.rect = self.image.get_rect().move(self.x, self.y)
-        print(self.rect)
+        self.damage = 5
+        self.bv = 10
 
     def move(self, dir, n):
         self.rect[dir] += 5 * n
@@ -255,6 +251,9 @@ class Gun(pygame.sprite.Sprite):
             self.image = pygame.transform.rotate(self.normal_image, int(angle))
         self.rect = self.image.get_rect(center=(983, 560))
 
+    def shoot(self, pos):
+        Bullet(pos[0], pos[1], self.bv, self.damage)
+
 
 class Pistol(Gun):
     def __init__(self, pos_x, pos_y):
@@ -262,33 +261,34 @@ class Pistol(Gun):
         self.normal_image = load_image('images\\pistol.png', -1)
         self.image = load_image('images\\pistol.png', -1)
         self.bv = 10
+        self.damage = 5
 
 
 class Bullet(pygame.sprite.Sprite):
-    def __init__(self, x, y, v):
+    def __init__(self, x, y, v, damage):
         super().__init__(bullet_group, all_sprites)
         self.x = player.rect.left + 55
         self.y = player.rect.top + 50
         x = uniform(x - x / 50, x + x / 50)
         y = uniform(y - y / 50, y + y / 50)
-        self.rx = x - self.x
-        self.ry = y - self.y
+        rx = x - self.x
+        ry = y - self.y
         g = ((x - self.x) ** 2 + (self.y - y) ** 2) ** 0.5
         self.vx = (x - self.x) / g * v
         self.vy = (y - self.y) / g * v
-        print(g, self.x, self.vx, self.y, self.vy)
+        self.damage = damage
         self.image = load_image('images\\pistol_bullet.png', -1)
-        self.normal_image = load_image('images\\pistol_bullet.png', -1)
         self.rect = self.image.get_rect().move(self.x, self.y)
+        self.sx, self.sy = self.rect.center
+        angle = (180 / math.pi) * math.atan2(rx, ry)
+        self.image = pygame.transform.flip(self.image, False, True)
+        self.image = pygame.transform.rotate(self.image, int(angle))
 
     def update(self):
-        self.x = int(self.x + self.vx)
-        self.y = int(self.y + self.vy)
-        angle = (180 / math.pi) * math.atan2(self.rx, self.ry)
-        self.image = pygame.transform.flip(self.normal_image, False, True)
-        self.image = pygame.transform.rotate(self.image, int(angle))
-        self.rect.left = self.rect.left + self.vx
-        self.rect.top = self.rect.top + self.vy
+        self.sx = self.sx + self.vx
+        self.sy = self.sy + self.vy
+        self.rect.left = self.sx
+        self.rect.top = self.sy
 
 
 class Menu:
@@ -363,7 +363,7 @@ def run_game():
             if event.type == pygame.QUIT:
                 in_game = False
             if event.type == pygame.MOUSEBUTTONDOWN:
-                Bullet(event.pos[0], event.pos[1], gun.bv)
+                gun.shoot(event.pos)
             if event.type == pygame.MOUSEMOTION:
                 mouse_pos = event.pos
                 gun.rotate()
@@ -428,6 +428,15 @@ def run_game():
         screen.blit(font.render("Этаж " + str(floor), 1, pygame.Color('red')),
                     (1730, 20))
         enemy_group.update()
+        bullet_group.update()
+        collide = pygame.sprite.groupcollide(bullet_group, enemy_group, True, False)
+        for i in range(len(collide)):
+            keys = list(collide.keys())
+            damage = keys[i].damage
+            for j in collide[keys[i]]:
+                j.hp -= damage
+                if j.hp <= 0:
+                    j.kill()
         enemy_group.draw(screen)
         if player.direction == 'up':
             gun_group.draw(screen)
@@ -435,7 +444,6 @@ def run_game():
         else:
             player_group.draw(screen)
             gun_group.draw(screen)
-        bullet_group.update()
         pygame.sprite.groupcollide(bullet_group, walls_group, True, False)
         bullet_group.draw(screen)
         screen.blit(arrow, mouse_pos)
