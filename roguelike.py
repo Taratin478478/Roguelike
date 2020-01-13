@@ -274,11 +274,10 @@ class Player(pygame.sprite.Sprite):
             self.hitbox.bottom += 5 * n
 
         self.room = [self.x // 1280, self.y // 1280]
-        self.in_corridor = self.hitbox.left % 1280 > 895 or self.hitbox.top % 1280 > 895 or self.hitbox.right % 1280 < 64 or self.hitbox.bottom % 1280 < 64 or self.hitbox.left % 1280 < 64 or self.hitbox.top % 1280 < 64 or self.hitbox.right % 1280 > 895 or self.hitbox.bottom % 1280 > 895
-        print(self.hitbox.left % 1280 > 895, self.hitbox.top % 1280 > 895, self.hitbox.right % 1280 < 64, self.hitbox.bottom % 1280 < 64, self.hitbox.left % 1280 < 64, self.hitbox.top % 1280 < 64, self.hitbox.right % 1280 > 895, self.hitbox.bottom % 1280 > 895)
-        print(self.hitbox.rect[0] + self.hitbox.rect[2], self.hitbox.rect[1] + self.hitbox.rect[3], self.hitbox.rect[0], self.hitbox.rect[1], self.x % 1280, self.y % 1280)
-        print(self.hitbox.rect)
-
+        self.in_corridor = self.hitbox.left % 1280 > 895 or self.hitbox.top % 1280 > 895\
+                           or self.hitbox.right % 1280 < 64 or self.hitbox.bottom % 1280 < 64 or\
+                           self.hitbox.left % 1280 < 64 or self.hitbox.top % 1280 < 64 or\
+                           self.hitbox.right % 1280 > 895 or self.hitbox.bottom % 1280 > 895
 
 
 class Gun(pygame.sprite.Sprite):
@@ -414,6 +413,7 @@ def run_game():
     screen = pygame.display.set_mode((1920, 1080), pygame.FULLSCREEN)
     generate_map()
     pygame.mouse.set_visible(False)
+    damage_timer = 0
     while in_game:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -481,8 +481,6 @@ def run_game():
         clock.tick(fps)
         screen.fill(pygame.Color('black'))
         tiles_group.draw(screen)
-        screen.blit(font.render("Этаж " + str(floor), 1, pygame.Color('red')),
-                    (1730, 20))
         dead_group.update()
         enemy_group.update()
         bullet_group.update()
@@ -502,8 +500,18 @@ def run_game():
             gun_group.draw(screen)
         pygame.sprite.groupcollide(bullet_group, walls_group, True, False)
         bullet_group.draw(screen)
+        screen.blit(font.render("Этаж " + str(floor), 1, pygame.Color('red')), (1730, 20))
+        if pygame.sprite.spritecollideany(player.hitbox, enemy_group) and damage_timer == 0:
+            player.hp -= 1
+            damage_timer = 120
+        n = 20
+        for i in range(player.hp):
+            screen.blit(load_image('images\\heart.png', -1), (n, 20))
+            n += 84
         screen.blit(arrow, mouse_pos)
         pygame.display.flip()
+        if damage_timer > 0:
+            damage_timer -= 1
 
 
 menu = Menu()
