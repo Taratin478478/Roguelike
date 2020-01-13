@@ -236,6 +236,12 @@ class Enemy(pygame.sprite.Sprite):
                 self.kill()
 
 
+class Hitbox(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        super().__init__(all_sprites)
+        self.rect = pygame.Rect(x + 23, y + 6, 57, 75)
+
+
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, pos_x, pos_y):
@@ -244,14 +250,19 @@ class Player(pygame.sprite.Sprite):
         self.image = load_image('images\\player.png', -1)
         self.x = tile_width * pos_x
         self.y = tile_height * pos_y
-        self.rect = self.image.get_rect().move(self.x, self.y)
         self.direction = 'right'
         self.room = [self.x // 1280, self.y // 1280]
         self.in_corridor = False
         self.walk_cycle = 0
+        self.hp = 3
+        self.hitbox = Hitbox(self.x, self.y)
+        self.rect = self.image.get_rect().move(self.x, self.y)
+        print(self.rect, self.hitbox)
 
     def move(self, dir, n):
         self.rect[dir] += 5 * n
+        self.hitbox.rect[dir] += 5 * n
+        print(self.rect, self.hitbox.rect)
         if dir == 0:
             self.x += 5 * n
         else:
@@ -409,7 +420,7 @@ def run_game():
                 if event.key == pygame.K_RIGHT or event.key == pygame.K_d:
                     player.move(0, 1)
                     gun.move(0, 1)
-                    if pygame.sprite.spritecollideany(player, walls_group):
+                    if pygame.sprite.spritecollideany(player.hitbox, walls_group):
                         player.move(0, -1)
                         gun.move(0, -1)
                     if player.walk_cycle < 10:
@@ -421,7 +432,7 @@ def run_game():
                 if event.key == pygame.K_LEFT or event.key == pygame.K_a:
                     player.move(0, -1)
                     gun.move(0, -1)
-                    if pygame.sprite.spritecollideany(player, walls_group):
+                    if pygame.sprite.spritecollideany(player.hitbox, walls_group):
                         player.move(0, 1)
                         gun.move(0, 1)
                     if player.walk_cycle < 10:
@@ -433,7 +444,7 @@ def run_game():
                 if event.key == pygame.K_UP or event.key == pygame.K_w:
                     player.move(1, -1)
                     gun.move(1, -1)
-                    if pygame.sprite.spritecollideany(player, walls_group):
+                    if pygame.sprite.spritecollideany(player.hitbox, walls_group):
                         player.move(1, 1)
                         gun.move(1, 1)
                     if player.walk_cycle < 10:
@@ -445,7 +456,7 @@ def run_game():
                 if event.key == pygame.K_DOWN or event.key == pygame.K_s:
                     player.move(1, 1)
                     gun.move(1, 1)
-                    if pygame.sprite.spritecollideany(player, walls_group):
+                    if pygame.sprite.spritecollideany(player.hitbox, walls_group):
                         player.move(1, -1)
                         gun.move(1, -1)
                     if player.walk_cycle < 10:
@@ -454,7 +465,7 @@ def run_game():
                         player.image = load_image('images\\player_front_2.png', -1)
                     player.walk_cycle = (player.walk_cycle + 1) % 20
                     player.direction = 'down'
-                if pygame.sprite.spritecollideany(player, hole_group):
+                if pygame.sprite.spritecollideany(player.hitbox, hole_group):
                     generate_map()
         camera.update(player)
         for sprite in all_sprites:
