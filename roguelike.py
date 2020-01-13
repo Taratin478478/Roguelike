@@ -240,7 +240,10 @@ class Hitbox(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__(all_sprites)
         self.rect = pygame.Rect(x + 23, y + 6, 57, 75)
-
+        self.left = x + 23
+        self.top = y + 6
+        self.right = self.left + 57
+        self.bottom = self.top + 75
 
 
 class Player(pygame.sprite.Sprite):
@@ -257,21 +260,25 @@ class Player(pygame.sprite.Sprite):
         self.hp = 3
         self.hitbox = Hitbox(self.x, self.y)
         self.rect = self.image.get_rect().move(self.x, self.y)
-        print(self.rect, self.hitbox)
 
     def move(self, dir, n):
         self.rect[dir] += 5 * n
         self.hitbox.rect[dir] += 5 * n
-        print(self.rect, self.hitbox.rect)
         if dir == 0:
             self.x += 5 * n
+            self.hitbox.left += 5 * n
+            self.hitbox.right += 5 * n
         else:
             self.y += 5 * n
-        self.in_corridor = (self.x + 99) % 1280 > 895 or (self.y + 82) % 1280 > 895 or\
-                           (self.x + 99) % 1280 < 64 or (self.y + 82) % 1280 < 64 or self.x %\
-                           1280 < 64 or self.y % 1280 < 64 or self.x % 1280\
-                           > 895 or self.y % 1280 > 895
+            self.hitbox.top += 5 * n
+            self.hitbox.bottom += 5 * n
+
         self.room = [self.x // 1280, self.y // 1280]
+        self.in_corridor = self.hitbox.left % 1280 > 895 or self.hitbox.top % 1280 > 895 or self.hitbox.right % 1280 < 64 or self.hitbox.bottom % 1280 < 64 or self.hitbox.left % 1280 < 64 or self.hitbox.top % 1280 < 64 or self.hitbox.right % 1280 > 895 or self.hitbox.bottom % 1280 > 895
+        print(self.hitbox.left % 1280 > 895, self.hitbox.top % 1280 > 895, self.hitbox.right % 1280 < 64, self.hitbox.bottom % 1280 < 64, self.hitbox.left % 1280 < 64, self.hitbox.top % 1280 < 64, self.hitbox.right % 1280 > 895, self.hitbox.bottom % 1280 > 895)
+        print(self.hitbox.rect[0] + self.hitbox.rect[2], self.hitbox.rect[1] + self.hitbox.rect[3], self.hitbox.rect[0], self.hitbox.rect[1], self.x % 1280, self.y % 1280)
+        print(self.hitbox.rect)
+
 
 
 class Gun(pygame.sprite.Sprite):
