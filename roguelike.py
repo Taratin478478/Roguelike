@@ -322,7 +322,7 @@ class Bullet(pygame.sprite.Sprite):
     def __init__(self, x, y, v, damage):
         super().__init__(bullet_group, all_sprites)
         self.x = player.rect.left + 55
-        self.y = player.rect.top + 50
+        self.y = player.rect.top + 40
         x = uniform(x - x / 50, x + x / 50)
         y = uniform(y - y / 50, y + y / 50)
         rx = x - self.x
@@ -473,7 +473,9 @@ def run_game():
                     player.walk_cycle = (player.walk_cycle + 1) % 20
                     player.direction = 'down'
                 if pygame.sprite.spritecollideany(player.hitbox, hole_group):
+                    hp = player.hp
                     generate_map()
+                    player.hp = hp
         camera.update(player)
         for sprite in all_sprites:
             camera.apply(sprite)
