@@ -30,16 +30,20 @@ class Tile(pygame.sprite.Sprite):
     def __init__(self, tile_type, pos_x, pos_y):
         super().__init__(tiles_group, all_sprites)
         self.image = tile_images[tile_type]
-        self.rect = self.image.get_rect().move(tile_width * pos_x,
-                                               tile_height * pos_y)
+        self.rect = self.image.get_rect().move(tile_width * pos_x, tile_height * pos_y)
 
 
 class Wall(pygame.sprite.Sprite):
     def __init__(self, tile_type, pos_x, pos_y):
         super().__init__(tiles_group, all_sprites, walls_group)
         self.image = tile_images[tile_type]
-        self.rect = self.image.get_rect().move(tile_width * pos_x,
-                                               tile_height * pos_y)
+        self.rect = self.image.get_rect().move(tile_width * pos_x, tile_height * pos_y)
+
+
+class BulletStopper(pygame.sprite.Sprite):
+    def __init__(self, pos_x, pos_y):
+        super().__init__(all_sprites, bullet_stopper_group)
+        self.rect = pygame.Rect(tile_width * pos_x, tile_height * pos_y, 64, 64)
 
 
 class Hole(pygame.sprite.Sprite):
@@ -71,7 +75,8 @@ class Camera:
 
 
 def reset_groups():
-    global tiles_group, player_group, walls_group, all_sprites, hole_group, gun_group, bullet_group, enemy_group, dead_group
+    global tiles_group, player_group, walls_group, all_sprites, hole_group, gun_group, bullet_group,\
+        enemy_group, dead_group, bullet_stopper_group
     tiles_group = pygame.sprite.Group()
     player_group = pygame.sprite.Group()
     walls_group = pygame.sprite.Group()
@@ -81,6 +86,7 @@ def reset_groups():
     bullet_group = pygame.sprite.Group()
     enemy_group = pygame.sprite.Group()
     dead_group = pygame.sprite.Group()
+    bullet_stopper_group = pygame.sprite.Group()
 
 
 floor = 0
@@ -93,6 +99,7 @@ gun_group = pygame.sprite.Group()
 bullet_group = pygame.sprite.Group()
 enemy_group = pygame.sprite.Group()
 dead_group = pygame.sprite.Group()
+bullet_stopper_group = pygame.sprite.Group()
 in_game = False
 tile_images = {'wall': load_image('images\\wall.png'),
                'empty': load_image('images\\floor.png'),
@@ -136,6 +143,10 @@ def draw_room(level, i, j, t):
             elif level[x][y] == '%':
                 Tile('empty', x + j * 20, y + i * 20)
                 Enemy(x + j * 20, y + i * 20)
+            elif level[x][y] == ':':
+                BulletStopper(x + j * 20, y + i * 20)
+                Tile('empty', x + j * 20, y + i * 20)
+
 
 
 def draw_level():
@@ -169,24 +180,25 @@ def draw_level():
                     if level[x][y] == '.':
                         level[x][y] = '%'
                         ne -= 1
+                symb = ':' if ea else '.'
                 if level_map[i + 1][j] != '':
-                    level[6][14] = '.'
-                    level[7][14] = '.'
-                    level[8][14] = '.'
+                    level[6][14] = symb
+                    level[7][14] = symb
+                    level[8][14] = symb
                     draw_room(hor, i, j, 'vert')
                 if level_map[i - 1][j] != '':
-                    level[6][0] = '.'
-                    level[7][0] = '.'
-                    level[8][0] = '.'
+                    level[6][0] = symb
+                    level[7][0] = symb
+                    level[8][0] = symb
                 if level_map[i][j + 1] != '':
-                    level[14][6] = '.'
-                    level[14][7] = '.'
-                    level[14][8] = '.'
+                    level[14][6] = symb
+                    level[14][7] = symb
+                    level[14][8] = symb
                     draw_room(vert, i, j, 'hor')
                 if level_map[i][j - 1] != '':
-                    level[0][6] = '.'
-                    level[0][7] = '.'
-                    level[0][8] = '.'
+                    level[0][6] = symb
+                    level[0][7] = symb
+                    level[0][8] = symb
                 draw_room(level, i, j, 'room')
 
 
@@ -274,9 +286,9 @@ class Player(pygame.sprite.Sprite):
             self.hitbox.bottom += 5 * n
 
         self.room = [self.x // 1280, self.y // 1280]
-        self.in_corridor = self.hitbox.left % 1280 > 895 or self.hitbox.top % 1280 > 895\
-                           or self.hitbox.right % 1280 < 64 or self.hitbox.bottom % 1280 < 64 or\
-                           self.hitbox.left % 1280 < 64 or self.hitbox.top % 1280 < 64 or\
+        self.in_corridor = self.hitbox.left % 1280 > 895 or self.hitbox.top % 1280 > 895 \
+                           or self.hitbox.right % 1280 < 64 or self.hitbox.bottom % 1280 < 64 or \
+                           self.hitbox.left % 1280 < 64 or self.hitbox.top % 1280 < 64 or \
                            self.hitbox.right % 1280 > 895 or self.hitbox.bottom % 1280 > 895
 
 
@@ -501,6 +513,7 @@ def run_game():
             player_group.draw(screen)
             gun_group.draw(screen)
         pygame.sprite.groupcollide(bullet_group, walls_group, True, False)
+        pygame.sprite.groupcollide(bullet_group, bullet_stopper_group, True, False)
         bullet_group.draw(screen)
         screen.blit(font.render("Этаж " + str(floor), 1, pygame.Color('red')), (1730, 20))
         if pygame.sprite.spritecollideany(player.hitbox, enemy_group) and damage_timer == 0:
