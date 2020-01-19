@@ -12,6 +12,7 @@ fps = 60
 level_names = ['room1', 'room2', 'room3', 'room4', 'room5', 'room6', 'room7', 'room8', 'room9',
                'room10']
 player = None
+room_map = []
 
 
 def load_image(name, colorkey=None):
@@ -40,10 +41,22 @@ class Wall(pygame.sprite.Sprite):
         self.rect = self.image.get_rect().move(tile_width * pos_x, tile_height * pos_y)
 
 
-class BulletStopper(pygame.sprite.Sprite):
+class TempWall(pygame.sprite.Sprite):
     def __init__(self, pos_x, pos_y):
-        super().__init__(all_sprites, bullet_stopper_group)
-        self.rect = pygame.Rect(tile_width * pos_x, tile_height * pos_y, 64, 64)
+        super().__init__(tiles_group, all_sprites, bullet_stopper_group)
+        self.image = tile_images['empty']
+        self.rect = self.image.get_rect().move(tile_width * pos_x, tile_height * pos_y)
+        self.cond = 0
+
+    def update(self):
+        self.cond += 1
+        if self.cond == 1:
+            self.image = tile_images['wall']
+            bullet_stopper_group.remove(self)
+            walls_group.add(self)
+        elif self.cond == 2:
+            self.image = tile_images['empty']
+            walls_group.remove(self)
 
 
 class Hole(pygame.sprite.Sprite):
@@ -55,12 +68,10 @@ class Hole(pygame.sprite.Sprite):
 
 
 class Camera:
-    # зададим начальный сдвиг камеры
     def __init__(self):
         self.dx = 0
         self.dy = 0
 
-    # сдвинуть объект obj на смещение камеры
     def apply(self, obj):
         obj.rect.x = obj.rect.x + self.dx
         obj.rect.y = obj.rect.y + self.dy
@@ -68,15 +79,14 @@ class Camera:
             obj.sx += self.dx
             obj.sy += self.dy
 
-    # позиционировать камеру на объекте target
     def update(self, target):
         self.dx = -(target.rect.x + target.rect.w // 2 - 1920 // 2)
         self.dy = -(target.rect.y + target.rect.h // 2 - 1080 // 2)
 
 
 def reset_groups():
-    global tiles_group, player_group, walls_group, all_sprites, hole_group, gun_group, bullet_group,\
-        enemy_group, dead_group, bullet_stopper_group
+    global tiles_group, player_group, walls_group, all_sprites, hole_group, gun_group, \
+        bullet_group, enemy_group, dead_group, bullet_stopper_group, temp_walls_group
     tiles_group = pygame.sprite.Group()
     player_group = pygame.sprite.Group()
     walls_group = pygame.sprite.Group()
@@ -87,6 +97,7 @@ def reset_groups():
     enemy_group = pygame.sprite.Group()
     dead_group = pygame.sprite.Group()
     bullet_stopper_group = pygame.sprite.Group()
+    temp_walls_group = pygame.sprite.Group()
 
 
 floor = 0
@@ -100,6 +111,7 @@ bullet_group = pygame.sprite.Group()
 enemy_group = pygame.sprite.Group()
 dead_group = pygame.sprite.Group()
 bullet_stopper_group = pygame.sprite.Group()
+temp_walls_group = pygame.sprite.Group()
 in_game = False
 tile_images = {'wall': load_image('images\\wall.png'),
                'empty': load_image('images\\floor.png'),
@@ -144,12 +156,11 @@ def draw_room(level, i, j, t):
                 Tile('empty', x + j * 20, y + i * 20)
                 Enemy(x + j * 20, y + i * 20)
             elif level[x][y] == ':':
-                BulletStopper(x + j * 20, y + i * 20)
-                Tile('empty', x + j * 20, y + i * 20)
-
+                level_map[i][j][3].append(TempWall(x + j * 20, y + i * 20))
 
 
 def draw_level():
+    global level_map
     names = level_names
     shuffle(names)
     k = randint(3, 7) + 1
@@ -173,7 +184,7 @@ def draw_level():
             if level_map[i][j] != '':
                 ea = level_map[i][j] not in ['start', 'end']
                 level = load_level(level_map[i][j] + '.txt')
-                ne = randint(2, 6)
+                nel = ne = randint(2, 6)
                 while ne > 0 and ea:
                     x = randint(1, 13)
                     y = randint(1, 13)
@@ -181,6 +192,10 @@ def draw_level():
                         level[x][y] = '%'
                         ne -= 1
                 symb = ':' if ea else '.'
+                if ea:
+                    level_map[i][j] = [level_map[i][j], nel, 'full', []]
+                else:
+                    level_map[i][j] = [level_map[i][j], 0, 'main', []]
                 if level_map[i + 1][j] != '':
                     level[6][14] = symb
                     level[7][14] = symb
@@ -200,6 +215,7 @@ def draw_level():
                     level[0][7] = symb
                     level[0][8] = symb
                 draw_room(level, i, j, 'room')
+    print(level_map)
 
 
 class Enemy(pygame.sprite.Sprite):
@@ -488,6 +504,15 @@ def run_game():
                     hp = player.hp
                     generate_map()
                     player.hp = hp
+        rx, ry = player.room[0], player.room[1]
+        if level_map[ry][rx] != '' and not player.in_corridor:
+            if level_map[ry][rx][2] == 'full':
+                level_map[ry][rx][2] = 'running'
+                for sprite in level_map[ry][rx][3]:
+                    sprite.update()
+            elif level_map[ry][rx][2] == 'running' and level_map[ry][rx][1] == 0:
+                for sprite in level_map[ry][rx][3]:
+                    sprite.update()
         camera.update(player)
         for sprite in all_sprites:
             camera.apply(sprite)
@@ -495,6 +520,7 @@ def run_game():
         clock.tick(fps)
         screen.fill(pygame.Color('black'))
         tiles_group.draw(screen)
+        temp_walls_group.draw(screen)
         dead_group.update()
         enemy_group.update()
         bullet_group.update()
@@ -504,6 +530,8 @@ def run_game():
             damage = keys[i].damage
             for j in collide[keys[i]]:
                 j.hp -= damage
+                if j.hp <= 0:
+                    level_map[ry][rx][1] -= 1
         enemy_group.draw(screen)
         dead_group.draw(screen)
         if player.direction == 'up':
