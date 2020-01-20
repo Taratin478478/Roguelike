@@ -1,18 +1,37 @@
 import math
 import os
+from pprint import pprint
+
 import pygame
 from random import shuffle, randint, uniform
 from PIL import Image
 
 pygame.init()
-width, height = 800, 600
-screen = pygame.display.set_mode((width, height))
+width, height = 1920, 1080
+screen = pygame.display.set_mode((width, height), pygame.FULLSCREEN)
 clock = pygame.time.Clock()
 fps = 60
 level_names = ['room1', 'room2', 'room3', 'room4', 'room5', 'room6', 'room7', 'room8', 'room9',
                'room10']
 player = None
 room_map = []
+enemies_allowed = []
+for i in range(15):
+    enemies_allowed.append([])
+    for j in range(15):
+        enemies_allowed[i].append(True)
+for i in range(6, 9):
+    enemies_allowed[0][i] = False
+    enemies_allowed[1][i] = False
+    enemies_allowed[13][i] = False
+    enemies_allowed[14][i] = False
+    enemies_allowed[i][0] = False
+    enemies_allowed[i][1] = False
+    enemies_allowed[i][13] = False
+    enemies_allowed[i][14] = False
+print(enemies_allowed)
+dead = False
+in_game = False
 
 
 def load_image(name, colorkey=None):
@@ -186,9 +205,9 @@ def draw_level():
                 level = load_level(level_map[i][j] + '.txt')
                 nel = ne = randint(2, 6)
                 while ne > 0 and ea:
-                    x = randint(1, 13)
-                    y = randint(1, 13)
-                    if level[x][y] == '.':
+                    x = randint(1, 14)
+                    y = randint(1, 14)
+                    if level[x][y] == '.' and enemies_allowed[x][y]:
                         level[x][y] = '%'
                         ne -= 1
                 symb = ':' if ea else '.'
@@ -215,7 +234,6 @@ def draw_level():
                     level[0][7] = symb
                     level[0][8] = symb
                 draw_room(level, i, j, 'room')
-    print(level_map)
 
 
 class Enemy(pygame.sprite.Sprite):
@@ -245,13 +263,16 @@ class Enemy(pygame.sprite.Sprite):
                 self.sx, self.sy = self.sx + vx, self.sy + vy
                 self.rect.center = (self.sx, self.sy)
                 if pygame.sprite.spritecollideany(self, walls_group):
+                    fvx = self.v if vx >= 0 else -self.v
+                    fvy = self.v if vy >= 0 else -self.v
                     self.sx = self.sx - vx
+                    self.sy = self.sy - vy + fvy
                     self.rect.center = (self.sx, self.sy)
                     if pygame.sprite.spritecollideany(self, walls_group):
-                        self.sx, self.sy = self.sx + vx, self.sy - vy
+                        self.sx, self.sy = self.sx + fvx, self.sy - fvy
                         self.rect.center = (self.sx, self.sy)
                         if pygame.sprite.spritecollideany(self, walls_group):
-                            self.sx = self.sx - vx
+                            self.sx = self.sx - fvx
                             self.rect.center = (self.sx, self.sy)
         else:
             if self.a == 256:
@@ -376,10 +397,11 @@ class Bullet(pygame.sprite.Sprite):
 class Menu:
     def __init__(self):
         self.in_menu = True
-        self.draw_menu()
         self.run_menu()
 
     def draw_menu(self):
+        pygame.mouse.set_visible(True)
+        screen = pygame.display.set_mode((1920, 1080), pygame.FULLSCREEN)
         screen.fill(pygame.Color('black'))
         pygame.draw.rect(screen, pygame.Color('red'),
                          (width // 4, height // 3, width // 2, height // 12), 1)
@@ -410,6 +432,7 @@ class Menu:
 
     def run_menu(self):
         global in_game
+        self.draw_menu()
         while self.in_menu:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -427,6 +450,27 @@ class Menu:
             pygame.display.flip()
 
 
+def death_anim():
+    global dead
+    a = 255
+    screen_sprite_group = pygame.sprite.Group()
+    screen_sprite = pygame.sprite.Sprite(screen_sprite_group)
+    screen_sprite.image = load_image('images\\death_screen.png').convert()
+    screen_sprite.rect = screen_sprite.image.get_rect()
+    while dead:
+        screen.fill(pygame.Color('black'))
+        screen_sprite.image.set_alpha(a)
+        print(screen_sprite.image.get_alpha())
+        screen_sprite_group.draw(screen)
+        player_group.draw(screen)
+        clock.tick(fps)
+        pygame.display.flip()
+        if a <= 0:
+            dead = False
+            menu.in_menu = True
+        a -= 2
+
+
 def generate_map():
     global floor
     reset_groups()
@@ -435,7 +479,8 @@ def generate_map():
 
 
 def run_game():
-    global screen, in_game
+    global screen, in_game, dead, floor
+    floor = 0
     mouse_pos = (0, 0)
     camera = Camera()
     screen = pygame.display.set_mode((1920, 1080), pygame.FULLSCREEN)
@@ -551,6 +596,11 @@ def run_game():
         for i in range(player.hp):
             screen.blit(load_image('images\\heart.png', -1), (n, 20))
             n += 84
+        if player.hp <= 0:
+            pygame.image.save(screen, 'data\\images\\death_screen.png')
+            in_game = False
+            dead = True
+            print(100)
         screen.blit(arrow, mouse_pos)
         pygame.display.flip()
         if damage_timer > 0:
@@ -558,8 +608,10 @@ def run_game():
 
 
 menu = Menu()
-while in_game or menu.in_menu:
+while in_game or menu.in_menu or dead:
     if in_game:
         run_game()
     if menu.in_menu:
         menu.run_menu()
+    if dead:
+        death_anim()
