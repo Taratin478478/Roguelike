@@ -104,19 +104,18 @@ class Camera:
 
 
 def reset_groups():
-    global tiles_group, player_group, walls_group, all_sprites, hole_group, gun_group, \
-        bullet_group, enemy_group, dead_group, bullet_stopper_group, temp_walls_group
-    tiles_group = pygame.sprite.Group()
-    player_group = pygame.sprite.Group()
-    walls_group = pygame.sprite.Group()
-    all_sprites = pygame.sprite.Group()
-    hole_group = pygame.sprite.Group()
-    gun_group = pygame.sprite.Group()
-    bullet_group = pygame.sprite.Group()
-    enemy_group = pygame.sprite.Group()
-    dead_group = pygame.sprite.Group()
-    bullet_stopper_group = pygame.sprite.Group()
-    temp_walls_group = pygame.sprite.Group()
+    tiles_group.empty()
+    player_group.empty()
+    walls_group.empty()
+    all_sprites.empty()
+    hole_group.empty()
+    gun_group.empty()
+    bullet_group.empty()
+    enemy_group.empty()
+    dead_group.empty()
+    bullet_stopper_group.empty()
+    temp_walls_group.empty()
+    gold_text_group.empty()
 
 
 floor = 0
@@ -131,7 +130,7 @@ enemy_group = pygame.sprite.Group()
 dead_group = pygame.sprite.Group()
 bullet_stopper_group = pygame.sprite.Group()
 temp_walls_group = pygame.sprite.Group()
-in_game = False
+gold_text_group = pygame.sprite.Group()
 tile_images = {'wall': load_image('images\\wall.png'),
                'empty': load_image('images\\floor.png'),
                'hole': load_image('images\\hole.png')}
@@ -168,7 +167,7 @@ def draw_room(level, i, j, t):
             elif level[x][y] == '@':
                 Tile('empty', x + j * 20, y + i * 20)
                 player = Player(x + j * 20, y + i * 20)
-                gun = Pistol(x + j * 20, y + i * 20)
+                gun = Shotgun(x + j * 20, y + i * 20)
             elif level[x][y] == '$':
                 Hole('hole', x + j * 20, y + i * 20)
             elif level[x][y] == '%':
@@ -244,11 +243,13 @@ class Enemy(pygame.sprite.Sprite):
                                                tile_height * pos_y)
         self.direction = 'right'
         self.walk_cycle = 0
-        self.v = 2
+        self.v = 1.5
         self.sx, self.sy = self.rect.center
-        self.hp = 20 + 2 * (floor - 1)
+        self.hp = 20 * 1.2 ** (floor - 1)
         self.room = [pos_x // 20, pos_y // 20]
         self.a = 256
+        self.drop = [8, 12]
+        self.killed = False
 
     def update(self):
         if self.hp > 0:
@@ -278,6 +279,9 @@ class Enemy(pygame.sprite.Sprite):
             if self.a == 256:
                 enemy_group.remove(self)
                 dead_group.add(self)
+                drop = randint(self.drop[0], self.drop[1])
+                player.gold += drop
+                GoldText(self.rect.left, self.rect.top, drop)
             if self.a > 0:
                 self.a -= 5
                 self.image.set_alpha(self.a)
@@ -309,6 +313,7 @@ class Player(pygame.sprite.Sprite):
         self.hp = 3
         self.hitbox = Hitbox(self.x, self.y)
         self.rect = self.image.get_rect().move(self.x, self.y)
+        self.gold = 0
 
     def move(self, dir, n):
         self.rect[dir] += 5 * n
@@ -354,9 +359,6 @@ class Gun(pygame.sprite.Sprite):
             self.image = pygame.transform.rotate(self.normal_image, int(angle))
         self.rect = self.image.get_rect(center=(983, 560))
 
-    def shoot(self, pos):
-        Bullet(pos[0], pos[1], self.bv, self.damage)
-
 
 class Pistol(Gun):
     def __init__(self, pos_x, pos_y):
@@ -365,20 +367,77 @@ class Pistol(Gun):
         self.image = load_image('images\\pistol.png', -1)
         self.bv = 10
         self.damage = 5
+        self.gap = 20
+
+    def shoot(self, pos):
+        Bullet(pos[0], pos[1], self.bv, self.damage, 50)
+
+
+class AK(Gun):
+    def __init__(self, pos_x, pos_y):
+        super().__init__(pos_x, pos_y)
+        self.normal_image = load_image('images\\ak.png', -1)
+        self.image = load_image('images\\ak.png', -1)
+        self.bv = 30
+        self.damage = 10
+        self.gap = 10
+
+    def shoot(self, pos):
+        Bullet(pos[0], pos[1], self.bv, self.damage, 100)
+
+
+class Uzi(Gun):
+    def __init__(self, pos_x, pos_y):
+        super().__init__(pos_x, pos_y)
+        self.normal_image = load_image('images\\uzi.png', -1)
+        self.image = load_image('images\\uzi.png', -1)
+        self.bv = 20
+        self.damage = 2
+        self.gap = 7
+
+    def shoot(self, pos):
+        Bullet(pos[0], pos[1], self.bv, self.damage, 20)
+
+
+class Minigun(Gun):
+    def __init__(self, pos_x, pos_y):
+        super().__init__(pos_x, pos_y)
+        self.normal_image = load_image('images\\minigun.png', -1)
+        self.image = load_image('images\\minigun.png', -1)
+        self.bv = 20
+        self.damage = 2
+        self.gap = 2
+
+    def shoot(self, pos):
+        Bullet(pos[0], pos[1], self.bv, self.damage, 15)
+
+
+class Shotgun(Gun):
+    def __init__(self, pos_x, pos_y):
+        super().__init__(pos_x, pos_y)
+        self.normal_image = load_image('images\\shotgun.png', -1)
+        self.image = load_image('images\\shotgun.png', -1)
+        self.bv = 15
+        self.damage = 5
+        self.gap = 30
+
+    def shoot(self, pos):
+        for i in range(10):
+            Bullet(pos[0], pos[1], self.bv, self.damage, 10)
 
 
 class Bullet(pygame.sprite.Sprite):
-    def __init__(self, x, y, v, damage):
+    def __init__(self, x, y, v, damage, uni):
         super().__init__(bullet_group, all_sprites)
         self.x = player.rect.left + 55
         self.y = player.rect.top + 40
-        x = uniform(x - x / 50, x + x / 50)
-        y = uniform(y - y / 50, y + y / 50)
         rx = x - self.x
         ry = y - self.y
-        g = ((x - self.x) ** 2 + (self.y - y) ** 2) ** 0.5
-        self.vx = (x - self.x) / g * v
-        self.vy = (y - self.y) / g * v
+        rx = uniform(rx - rx / uni, rx + rx / uni)
+        ry = uniform(ry - ry / uni, ry + ry / uni)
+        g = (rx ** 2 + ry ** 2) ** 0.5
+        self.vx = rx / g * v
+        self.vy = ry / g * v
         self.damage = damage
         self.image = load_image('images\\pistol_bullet.png', -1)
         self.rect = self.image.get_rect().move(self.x, self.y)
@@ -392,6 +451,21 @@ class Bullet(pygame.sprite.Sprite):
         self.sy = self.sy + self.vy
         self.rect.left = self.sx
         self.rect.top = self.sy
+
+
+class GoldText(pygame.sprite.Sprite):
+    def __init__(self, x, y, gold):
+        super().__init__(gold_text_group, all_sprites)
+        self.image = pygame.font.Font(None, 40).render(str(gold), 1, pygame.Color('yellow'))
+        self.rect = self.image.get_rect().move(x + 7, y - 30)
+        self.x = 0
+
+    def update(self):
+        self.rect.top -= 1
+        self.x += 1
+        if self.x > 70:
+            self.kill()
+
 
 
 class Menu:
@@ -458,9 +532,8 @@ def death_anim():
     screen_sprite.image = load_image('images\\death_screen.png').convert()
     screen_sprite.rect = screen_sprite.image.get_rect()
     while dead:
-        screen.fill(pygame.Color('black'))
+        screen.fill(pygame.Color('white'))
         screen_sprite.image.set_alpha(a)
-        print(screen_sprite.image.get_alpha())
         screen_sprite_group.draw(screen)
         player_group.draw(screen)
         clock.tick(fps)
@@ -487,12 +560,16 @@ def run_game():
     generate_map()
     pygame.mouse.set_visible(False)
     damage_timer = 0
+    shoot_timer = 0
+    shooting = False
     while in_game:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 in_game = False
             if event.type == pygame.MOUSEBUTTONDOWN:
-                gun.shoot(event.pos)
+                shooting = True
+            if event.type == pygame.MOUSEBUTTONUP:
+                shooting = False
             if event.type == pygame.MOUSEMOTION:
                 mouse_pos = event.pos
                 gun.rotate()
@@ -547,8 +624,10 @@ def run_game():
                     player.direction = 'down'
                 if pygame.sprite.spritecollideany(player.hitbox, hole_group):
                     hp = player.hp
+                    gold = player.gold
                     generate_map()
                     player.hp = hp
+                    player.gold = gold
         rx, ry = player.room[0], player.room[1]
         if level_map[ry][rx] != '' and not player.in_corridor:
             if level_map[ry][rx][2] == 'full':
@@ -558,6 +637,10 @@ def run_game():
             elif level_map[ry][rx][2] == 'running' and level_map[ry][rx][1] == 0:
                 for sprite in level_map[ry][rx][3]:
                     sprite.update()
+        if shooting:
+            if shoot_timer == 0:
+                gun.shoot(mouse_pos)
+                shoot_timer = gun.gap
         camera.update(player)
         for sprite in all_sprites:
             camera.apply(sprite)
@@ -574,9 +657,13 @@ def run_game():
             keys = list(collide.keys())
             damage = keys[i].damage
             for j in collide[keys[i]]:
-                j.hp -= damage
-                if j.hp <= 0:
+                if not player.in_corridor:
+                    j.hp -= damage
+                if j.hp <= 0 and not j.killed:
                     level_map[ry][rx][1] -= 1
+                    j.killed = True
+                    print(level_map[ry][rx][1])
+                    player.gold += randint(j.drop[0], j.drop[1])
         enemy_group.draw(screen)
         dead_group.draw(screen)
         if player.direction == 'up':
@@ -589,9 +676,13 @@ def run_game():
         pygame.sprite.groupcollide(bullet_group, bullet_stopper_group, True, False)
         bullet_group.draw(screen)
         screen.blit(font.render("Этаж " + str(floor), 1, pygame.Color('red')), (1730, 20))
+        screen.blit(font.render(str(player.gold), 1, pygame.Color('yellow')), (30, 100))
+        screen.blit(load_image('images\\coin.png', -1), (30 + 23 * len(str(player.gold)), 95))
         if pygame.sprite.spritecollideany(player.hitbox, enemy_group) and damage_timer == 0:
             player.hp -= 1
             damage_timer = 120
+        gold_text_group.update()
+        gold_text_group.draw(screen)
         n = 20
         for i in range(player.hp):
             screen.blit(load_image('images\\heart.png', -1), (n, 20))
@@ -600,11 +691,12 @@ def run_game():
             pygame.image.save(screen, 'data\\images\\death_screen.png')
             in_game = False
             dead = True
-            print(100)
         screen.blit(arrow, mouse_pos)
         pygame.display.flip()
         if damage_timer > 0:
             damage_timer -= 1
+        if shoot_timer > 0:
+            shoot_timer -= 1
 
 
 menu = Menu()
