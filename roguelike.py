@@ -1,10 +1,8 @@
 import math
 import os
-from pprint import pprint
-
 import pygame
 from random import shuffle, randint, uniform
-from PIL import Image
+
 
 pygame.init()
 width, height = 1920, 1080
@@ -13,6 +11,7 @@ clock = pygame.time.Clock()
 fps = 60
 level_names = ['room1', 'room2', 'room3', 'room4', 'room5', 'room6', 'room7', 'room8', 'room9',
                'room10']
+weapon_names = [['uzi', 500], ['ak', 1000], ['minigun', 3000], ['shotgun', 1500]]
 player = None
 room_map = []
 enemies_allowed = []
@@ -20,16 +19,19 @@ for i in range(15):
     enemies_allowed.append([])
     for j in range(15):
         enemies_allowed[i].append(True)
-for i in range(6, 9):
+for i in range(5, 10):
     enemies_allowed[0][i] = False
     enemies_allowed[1][i] = False
+    enemies_allowed[2][i] = False
+    enemies_allowed[12][i] = False
     enemies_allowed[13][i] = False
     enemies_allowed[14][i] = False
     enemies_allowed[i][0] = False
     enemies_allowed[i][1] = False
+    enemies_allowed[i][2] = False
+    enemies_allowed[i][12] = False
     enemies_allowed[i][13] = False
     enemies_allowed[i][14] = False
-print(enemies_allowed)
 dead = False
 in_game = False
 
@@ -82,8 +84,15 @@ class Hole(pygame.sprite.Sprite):
     def __init__(self, tile_type, pos_x, pos_y):
         super().__init__(tiles_group, all_sprites, hole_group)
         self.image = tile_images[tile_type]
-        self.rect = self.image.get_rect().move(tile_width * pos_x,
-                                               tile_height * pos_y)
+        self.rect = self.image.get_rect().move(tile_width * pos_x, tile_height * pos_y)
+
+
+class ShopItem(pygame.sprite.Sprite):
+    def __init__(self, type, pos_x, pos_y):
+        super().__init__(shop_items_group, all_sprites)
+        self.image = load_image('images\\{}.png'.format(type), -1)
+        self.item_type = type
+        self.rect = self.image.get_rect().move(tile_width * pos_x, tile_height * pos_y)
 
 
 class Camera:
@@ -116,6 +125,8 @@ def reset_groups():
     bullet_stopper_group.empty()
     temp_walls_group.empty()
     gold_text_group.empty()
+    shop_items_group.empty()
+    shop_text_group.empty()
 
 
 floor = 0
@@ -131,6 +142,8 @@ dead_group = pygame.sprite.Group()
 bullet_stopper_group = pygame.sprite.Group()
 temp_walls_group = pygame.sprite.Group()
 gold_text_group = pygame.sprite.Group()
+shop_items_group = pygame.sprite.Group()
+shop_text_group = pygame.sprite.Group()
 tile_images = {'wall': load_image('images\\wall.png'),
                'empty': load_image('images\\floor.png'),
                'hole': load_image('images\\hole.png')}
@@ -148,7 +161,7 @@ def load_level(level):
 
 
 def draw_room(level, i, j, t):
-    global player, gun
+    global player, gun, sig
     if t == 'room':
         ax = 0
         ay = 0
@@ -167,7 +180,7 @@ def draw_room(level, i, j, t):
             elif level[x][y] == '@':
                 Tile('empty', x + j * 20, y + i * 20)
                 player = Player(x + j * 20, y + i * 20)
-                gun = Shotgun(x + j * 20, y + i * 20)
+                gun = Minigun(x + j * 20, y + i * 20)
             elif level[x][y] == '$':
                 Hole('hole', x + j * 20, y + i * 20)
             elif level[x][y] == '%':
@@ -175,6 +188,13 @@ def draw_room(level, i, j, t):
                 Enemy(x + j * 20, y + i * 20)
             elif level[x][y] == ':':
                 level_map[i][j][3].append(TempWall(x + j * 20, y + i * 20))
+    if level_map[i][j][0] == 'shop' and t == 'room':
+        sig = []
+        sig.append(ShopItem('heart', 3 + j * 20, 7 + i * 20))
+        GoldText(3 + j * 20, 8.5 + i * 20, '300', 'shop')
+        n = randint(0, 3)
+        sig.append(ShopItem(weapon_names[n][0], 9 + j * 20, 7 + i * 20))
+        GoldText(9 + j * 20, 8.5 + i * 20, str(weapon_names[n][1]), 'shop')
 
 
 def draw_level():
@@ -183,6 +203,7 @@ def draw_level():
     shuffle(names)
     k = randint(3, 7) + 1
     names = names[:k]
+    names.append('shop')
     level_map = []
     for i in range(9):
         level_map.append([''] * 9)
@@ -200,9 +221,9 @@ def draw_level():
     for i in range(len(level_map)):
         for j in range(len(level_map[0])):
             if level_map[i][j] != '':
-                ea = level_map[i][j] not in ['start', 'end']
+                ea = level_map[i][j] not in ['start', 'end', 'shop']
                 level = load_level(level_map[i][j] + '.txt')
-                nel = ne = randint(2, 6)
+                nel = ne = randint(3, 5)
                 while ne > 0 and ea:
                     x = randint(1, 14)
                     y = randint(1, 14)
@@ -281,7 +302,7 @@ class Enemy(pygame.sprite.Sprite):
                 dead_group.add(self)
                 drop = randint(self.drop[0], self.drop[1])
                 player.gold += drop
-                GoldText(self.rect.left, self.rect.top, drop)
+                GoldText(self.rect.left, self.rect.top, drop, 'death')
             if self.a > 0:
                 self.a -= 5
                 self.image.set_alpha(self.a)
@@ -313,7 +334,7 @@ class Player(pygame.sprite.Sprite):
         self.hp = 3
         self.hitbox = Hitbox(self.x, self.y)
         self.rect = self.image.get_rect().move(self.x, self.y)
-        self.gold = 0
+        self.gold = 99999999
 
     def move(self, dir, n):
         self.rect[dir] += 5 * n
@@ -370,7 +391,7 @@ class Pistol(Gun):
         self.gap = 20
 
     def shoot(self, pos):
-        Bullet(pos[0], pos[1], self.bv, self.damage, 50)
+        Bullet(pos[0], pos[1], self.bv, self.damage, 30)
 
 
 class AK(Gun):
@@ -379,8 +400,8 @@ class AK(Gun):
         self.normal_image = load_image('images\\ak.png', -1)
         self.image = load_image('images\\ak.png', -1)
         self.bv = 30
-        self.damage = 10
-        self.gap = 10
+        self.damage = 15
+        self.gap = 30
 
     def shoot(self, pos):
         Bullet(pos[0], pos[1], self.bv, self.damage, 100)
@@ -419,7 +440,7 @@ class Shotgun(Gun):
         self.image = load_image('images\\shotgun.png', -1)
         self.bv = 15
         self.damage = 5
-        self.gap = 30
+        self.gap = 60
 
     def shoot(self, pos):
         for i in range(10):
@@ -433,16 +454,15 @@ class Bullet(pygame.sprite.Sprite):
         self.y = player.rect.top + 40
         rx = x - self.x
         ry = y - self.y
-        rx = uniform(rx - rx / uni, rx + rx / uni)
-        ry = uniform(ry - ry / uni, ry + ry / uni)
-        g = (rx ** 2 + ry ** 2) ** 0.5
-        self.vx = rx / g * v
-        self.vy = ry / g * v
+        angle = (180 / math.pi) * math.atan2(rx, ry)
+        angle = uniform(angle - 180 / uni, angle + 180 / uni)
+        self.vx = math.sin(angle / 180 * math.pi) * v
+        self.vy = math.cos(angle / 180 * math.pi) * v
         self.damage = damage
         self.image = load_image('images\\pistol_bullet.png', -1)
         self.rect = self.image.get_rect().move(self.x, self.y)
         self.sx, self.sy = self.rect.center
-        angle = (180 / math.pi) * math.atan2(rx, ry)
+
         self.image = pygame.transform.flip(self.image, False, True)
         self.image = pygame.transform.rotate(self.image, int(angle))
 
@@ -454,8 +474,13 @@ class Bullet(pygame.sprite.Sprite):
 
 
 class GoldText(pygame.sprite.Sprite):
-    def __init__(self, x, y, gold):
-        super().__init__(gold_text_group, all_sprites)
+    def __init__(self, x, y, gold, text_type):
+        if text_type == 'shop':
+            super().__init__(shop_text_group, all_sprites)
+            x *= tile_width
+            y *= tile_height
+        elif text_type == 'death':
+            super().__init__(gold_text_group, all_sprites)
         self.image = pygame.font.Font(None, 40).render(str(gold), 1, pygame.Color('yellow'))
         self.rect = self.image.get_rect().move(x + 7, y - 30)
         self.x = 0
@@ -552,7 +577,7 @@ def generate_map():
 
 
 def run_game():
-    global screen, in_game, dead, floor
+    global screen, in_game, dead, floor, gun
     floor = 0
     mouse_pos = (0, 0)
     camera = Camera()
@@ -662,8 +687,25 @@ def run_game():
                 if j.hp <= 0 and not j.killed:
                     level_map[ry][rx][1] -= 1
                     j.killed = True
-                    print(level_map[ry][rx][1])
                     player.gold += randint(j.drop[0], j.drop[1])
+        collide = pygame.sprite.groupcollide(player_group, shop_items_group, False, False)
+        if collide:
+            key = list(collide.keys())[0]
+            if collide[key][0].item_type == 'heart':
+                player.hp += 1
+                sig[0].kill()
+            else:
+                if collide[key][0].item_type == 'uzi':
+                    gun = Uzi(player.rect.left, player.rect.top)
+                elif collide[key][0].item_type == 'ak':
+                    gun = AK(player.rect.left, player.rect.top)
+                elif collide[key][0].item_type == 'minigun':
+                    gun = Minigun(player.rect.left, player.rect.top)
+                elif collide[key][0].item_type == 'shotgun':
+                    gun = Shotgun(player.rect.left, player.rect.top)
+                sig[-1].kill()
+            collide[key][0].kill()
+
         enemy_group.draw(screen)
         dead_group.draw(screen)
         if player.direction == 'up':
@@ -683,6 +725,8 @@ def run_game():
             damage_timer = 120
         gold_text_group.update()
         gold_text_group.draw(screen)
+        shop_text_group.draw(screen)
+        shop_items_group.draw(screen)
         n = 20
         for i in range(player.hp):
             screen.blit(load_image('images\\heart.png', -1), (n, 20))
