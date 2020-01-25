@@ -462,32 +462,19 @@ class Menu:
         pygame.mouse.set_visible(True)
         screen = pygame.display.set_mode((1920, 1080), pygame.FULLSCREEN)
         screen.fill(pygame.Color('black'))
+        screen.blit(load_image('images\\menu_background.jpg'), (0, 0))
         pygame.draw.rect(screen, pygame.Color('red'),
-                         (width // 4, height // 3, width // 2, height // 12), 1)
+                         (width // 4, height // 3, width // 2, height // 6), 5)
         pygame.draw.rect(screen, pygame.Color('red'),
-                         (width // 4, height // 24 * 11, width // 2,
-                          height // 12),
-                         1)
-        pygame.draw.rect(screen, pygame.Color('red'),
-                         (width // 4, height // 12 * 7, width // 2,
-                          height // 12),
-                         1)
-        pygame.draw.rect(screen, pygame.Color('red'),
-                         (width // 4, height // 24 * 17, width // 2,
-                          height // 12),
-                         1)
-        font = pygame.font.Font(None, 113)
-        screen.blit(font.render("Something", 1, pygame.Color('red')),
-                    (width // 4, 100))
-        font = pygame.font.Font(None, 55)
+                         (width // 4, height // 3 * 2, width // 2, height // 6), 5)
+        font = pygame.font.Font(None, 290)
+        screen.blit(font.render("Infinity dungeons", 1, pygame.Color('red')),
+                    (100, 100))
+        font = pygame.font.Font(None, 200)
         screen.blit(font.render("Играть", 1, pygame.Color('red')),
-                    (width // 3 + 70, height // 3 + 5))
-        screen.blit(font.render("Магазин", 1, pygame.Color('red')),
-                    (width // 3 + 57, height // 24 * 11 + 5))
-        screen.blit(font.render("Достижения", 1, pygame.Color('red')),
-                    (width // 3 + 20, height // 12 * 7 + 5))
+                    (width // 3 + 70, height // 3 + 20))
         screen.blit(font.render("Выход", 1, pygame.Color('red')),
-                    (width // 3 + 70, height // 24 * 17 + 5))
+                    (width // 3 + 70, height // 3 * 2 + 20))
 
     def run_menu(self):
         global in_game
@@ -498,13 +485,11 @@ class Menu:
                     self.in_menu = False
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if event.pos[0] in range(width // 4, width // 4 * 3):
-                        if event.pos[1] in range(height // 24 * 17,
-                                                 height // 24 * 19):
-                            self.in_menu = False
-                        elif event.pos[1] in range(height // 3,
-                                                   height // 12 * 5):
+                        if event.pos[1] in range(height // 3, height // 2):
                             self.in_menu = False
                             in_game = True
+                        elif event.pos[1] in range(height // 3 * 2, height // 6 * 5):
+                            self.in_menu = False
             clock.tick(fps)
             pygame.display.flip()
 
