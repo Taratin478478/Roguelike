@@ -197,7 +197,7 @@ def draw_level():
                     level[0][7] = symb
                     level[0][8] = symb
                 draw_room(level, i, j, 'room')
-
+    print(level_map)
 
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, pos_x, pos_y):
@@ -433,6 +433,25 @@ class GoldText(pygame.sprite.Sprite):
             self.kill()
 
 
+class MiniRoom(pygame.sprite.Sprite):
+    def __init__(self, x, y, group, room_type, room_cond):
+        super().__init__(group)
+        image = 'mini_room'
+        if room_cond == 'main':
+            if room_type == 'shop':
+                image += '_coin'
+            elif room_type == 'start':
+                image += '_start'
+            elif room_type == 'end':
+                image += '_end'
+        elif room_cond == 'running':
+            image += '_running'
+        elif room_cond == 'cleared':
+            image += '_cleared'
+        if [x, y] == player.room:
+            image += '_current'
+        self.image = load_image('images\\' + image + '.png')
+        self.rect = self.image.get_rect().move(x * 150, y * 150)
 
 class Menu:
     def __init__(self):
@@ -519,6 +538,38 @@ def generate_map():
     floor += 1
 
 
+def run_map():
+    mini_room_group = pygame.sprite.Group()
+    in_map = True
+    timer = 0
+    for i in range(9):
+        for j in range(9):
+            if level_map[i][j] != '':
+                MiniRoom(j, i, mini_room_group, level_map[i][j][0], level_map[i][j][2])
+    while in_map:
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_m and timer > 60:
+                    in_map = False
+                if event.key == pygame.K_RIGHT or event.key == pygame.K_d:
+                    for s in mini_room_group:
+                        s.rect.left -= 5
+                if event.key == pygame.K_LEFT or event.key == pygame.K_a:
+                    for s in mini_room_group:
+                        s.rect.left += 5
+                if event.key == pygame.K_UP or event.key == pygame.K_w:
+                    for s in mini_room_group:
+                        s.rect.top += 5
+                if event.key == pygame.K_DOWN or event.key == pygame.K_s:
+                    for s in mini_room_group:
+                        s.rect.top -= 5
+
+        screen.fill(pygame.Color('black'))
+        mini_room_group.draw(screen)
+        clock.tick(fps)
+        pygame.display.flip()
+        timer += 1
+
 def run_game():
     global screen, in_game, dead, floor
     floor = 0
@@ -529,6 +580,8 @@ def run_game():
     pygame.mouse.set_visible(False)
     damage_timer = 0
     shoot_timer = 0
+    map_timer = 0
+    escape_timer = 0
     shooting = False
     while in_game:
         for event in pygame.event.get():
@@ -582,7 +635,10 @@ def run_game():
                         player.image = load_image('images\\player_front_2.png', -1)
                     player.walk_cycle = (player.walk_cycle + 1) % 20
                     player.direction = 'down'
-                if event.key == pygame.K_m:
+                if event.key == pygame.K_m and map_timer == 0:
+                    run_map()
+                    map_timer = 60
+                if event.key == pygame.K_ESCAPE and escape_timer == 0:
                     pass
                 if pygame.sprite.spritecollideany(player.hitbox, hole_group):
                     hp = player.hp
@@ -698,6 +754,10 @@ def run_game():
             damage_timer -= 1
         if shoot_timer > 0:
             shoot_timer -= 1
+        if map_timer > 0:
+            map_timer -= 1
+        if escape_timer > 0:
+            escape_timer -= 1
 
 
 pygame.init()
