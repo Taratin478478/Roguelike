@@ -514,7 +514,7 @@ def death_anim():
     a = 255
     screen_sprite_group = pygame.sprite.Group()
     screen_sprite = pygame.sprite.Sprite(screen_sprite_group)
-    screen_sprite.image = load_image('images\\death_screen.png').convert()
+    screen_sprite.image = load_image('images\\screen.png').convert()
     screen_sprite.rect = screen_sprite.image.get_rect()
     while dead:
         screen.fill(pygame.Color('white'))
@@ -563,12 +563,57 @@ def run_map():
                 if event.key == pygame.K_DOWN or event.key == pygame.K_s:
                     for s in mini_room_group:
                         s.rect.top -= 5
-
         screen.fill(pygame.Color('black'))
         mini_room_group.draw(screen)
         clock.tick(fps)
         pygame.display.flip()
         timer += 1
+
+
+def run_escape():
+    global in_game
+    mouse_pos = (0, 0)
+    in_pause = True
+    timer = 60
+    image = load_image('images\\screen.png')
+    while in_pause:
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE and timer == 0:
+                    in_pause = False
+            if event.type == pygame.MOUSEMOTION:
+                mouse_pos = event.pos
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.pos[0] in range(width // 4 + 204, (width // 4 + 204) + (width // 2 - 388)):
+                    if event.pos[1] in range(height // 4 + 120, height // 4 + 220):
+                        in_pause = False
+                    elif event.pos[1] in range(height // 4 + 320, height // 4 + 420):
+                        player.gun.kill()
+                        player.kill()
+                        in_pause = False
+                        in_game = False
+                        menu.in_menu = True
+        screen.blit(image, (0, 0))
+        pygame.draw.rect(screen, pygame.Color('brown'),
+                         (width // 4, height // 4, width // 2, height // 2), 40)
+        pygame.draw.rect(screen, pygame.Color('white'),
+                         (width // 4 + 20, height // 4 + 20, width // 2 - 40, height // 2 - 40), 0)
+        pygame.draw.rect(screen, pygame.Color('brown'),
+                         (width // 4 + 204, height // 4 + 120, width // 2 - 388, 100), 5)
+        pygame.draw.rect(screen, pygame.Color('brown'),
+                         (width // 4 + 204, height // 4 + 320, width // 2 - 388, 100), 5)
+        font = pygame.font.Font(None, 72)
+        screen.blit(font.render("Вернуться в игру", 1, pygame.Color('brown')),
+                    (width // 4 + 224, height // 4 + 140))
+        screen.blit(font.render("Выйти в меню", 1, pygame.Color('brown')),
+                    (width // 4 + 224, height // 4 + 340))
+        screen.blit(arrow, mouse_pos)
+        clock.tick(fps)
+        pygame.display.flip()
+        if timer > 0:
+            timer -= 1
+
+
 
 def run_game():
     global screen, in_game, dead, floor
@@ -639,7 +684,9 @@ def run_game():
                     run_map()
                     map_timer = 60
                 if event.key == pygame.K_ESCAPE and escape_timer == 0:
-                    pass
+                    pygame.image.save(screen, 'data\\images\\screen.png')
+                    run_escape()
+                    escape_timer = 60
                 if pygame.sprite.spritecollideany(player.hitbox, hole_group):
                     hp = player.hp
                     gold = player.gold
@@ -745,7 +792,7 @@ def run_game():
             screen.blit(load_image('images\\heart.png', -1), (n, 20))
             n += 84
         if player.hp <= 0:
-            pygame.image.save(screen, 'data\\images\\death_screen.png')
+            pygame.image.save(screen, 'data\\images\\screen.png')
             in_game = False
             dead = True
         screen.blit(arrow, mouse_pos)
