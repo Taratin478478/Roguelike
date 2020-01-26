@@ -277,7 +277,7 @@ class Player(pygame.sprite.Sprite):
         self.hp = 3
         self.hitbox = Hitbox(self.x, self.y)
         self.rect = self.image.get_rect().move(self.x, self.y)
-        self.gold = 99999999
+        self.gold = 0
         self.gun = Pistol(self.rect.left, self.rect.top)
 
     def move(self, dir, n):
