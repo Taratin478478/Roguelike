@@ -197,7 +197,7 @@ def draw_level():
                     level[0][7] = symb
                     level[0][8] = symb
                 draw_room(level, i, j, 'room')
-    print(level_map)
+
 
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, pos_x, pos_y):
@@ -453,6 +453,7 @@ class MiniRoom(pygame.sprite.Sprite):
         self.image = load_image('images\\' + image + '.png')
         self.rect = self.image.get_rect().move(x * 150, y * 150)
 
+
 class Menu:
     def __init__(self):
         self.in_menu = True
@@ -597,7 +598,6 @@ def run_escape():
         pygame.display.flip()
         if timer > 0:
             timer -= 1
-
 
 
 def run_game():
