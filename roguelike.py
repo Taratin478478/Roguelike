@@ -687,6 +687,7 @@ def run_game():
                 for sprite in level_map[ry][rx][3]:
                     sprite.update()
             elif level_map[ry][rx][2] == 'running' and level_map[ry][rx][1] == 0:
+                level_map[ry][rx][2] = 'cleared'
                 for sprite in level_map[ry][rx][3]:
                     sprite.update()
         if shooting:
